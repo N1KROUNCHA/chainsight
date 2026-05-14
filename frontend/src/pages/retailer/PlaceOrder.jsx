@@ -147,48 +147,48 @@ export default function PlaceOrder({ user }) {
         <div className="page-desc">Source directly from suppliers or regional hubs</div>
       </div>
 
-      <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24 }}>
-        <div>
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div className="card-header">
-              <div className="card-title">1. Choose Your Source</div>
-            </div>
-            <div style={{ padding: 16 }}>
-              {vendors.length === 0 && (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
-                  No suppliers or distributors found in the system.
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-                {vendors.map(v => (
-                  <div 
-                    key={`${v.type}-${v.user.userId}`}
-                    onClick={() => selectVendor(v)}
-                    style={{ 
-                      minWidth: 180, padding: 14, cursor: 'pointer', borderRadius: 10,
-                      border: selectedVendor?.user.userId === v.user.userId ? '2px solid var(--accent)' : '1px solid var(--border)',
-                      background: selectedVendor?.user.userId === v.user.userId ? 'var(--bg-hover)' : 'var(--bg-card-2)',
-                      transition: 'all 0.2s',
-                      flexShrink: 0
-                    }}
-                  >
-                    <div style={{ 
-                      fontSize: 10, fontWeight: 700, marginBottom: 6,
-                      color: v.type === 'SUPPLIER' ? 'var(--accent-2)' : 'var(--accent-3)',
-                    }}>
-                      {v.type === 'SUPPLIER' ? '🏭 SUPPLIER' : '🏗️ DISTRIBUTOR'}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{v.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>📍 {v.city}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
-                      Approves: {v.type === 'SUPPLIER' ? 'Supplier' : 'Distributor'}
-                    </div>
-                  </div>
-                ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1000, margin: '0 auto' }}>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">1. Choose Your Source</div>
+          </div>
+          <div style={{ padding: 16 }}>
+            {vendors.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+                No suppliers or distributors found in the system.
               </div>
+            )}
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+              {vendors.map(v => (
+                <div 
+                  key={`${v.type}-${v.user.userId}`}
+                  onClick={() => selectVendor(v)}
+                  style={{ 
+                    minWidth: 180, padding: 14, cursor: 'pointer', borderRadius: 10,
+                    border: selectedVendor?.user.userId === v.user.userId ? '2px solid var(--accent)' : '1px solid var(--border)',
+                    background: selectedVendor?.user.userId === v.user.userId ? 'var(--bg-hover)' : 'var(--bg-card-2)',
+                    transition: 'all 0.2s',
+                    flexShrink: 0
+                  }}
+                >
+                  <div style={{ 
+                    fontSize: 10, fontWeight: 700, marginBottom: 6,
+                    color: v.type === 'SUPPLIER' ? 'var(--accent-2)' : 'var(--accent-3)',
+                  }}>
+                    {v.type === 'SUPPLIER' ? '🏭 SUPPLIER' : '🏗️ DISTRIBUTOR'}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{v.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>📍 {v.city}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+                    Approves: {v.type === 'SUPPLIER' ? 'Supplier' : 'Distributor'}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+        </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24 }}>
           {selectedVendor ? (
             <div className="card">
               <div className="card-header">
@@ -223,9 +223,7 @@ export default function PlaceOrder({ user }) {
               Please select a supplier or distributor to browse available stock.
             </div>
           )}
-        </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div className="card">
             <div className="card-header">
               <div className="card-title">Items Requested</div>
@@ -259,45 +257,6 @@ export default function PlaceOrder({ user }) {
                   Place Order Request
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header" style={{ background: '#1e293b50' }}>
-              <div className="card-title">Active Requests</div>
-            </div>
-            <div style={{ padding: 16 }}>
-              {activeOrders.map(order => (
-                <div key={order.orderId} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <strong>Req #{order.orderId}</strong>
-                    <span className={`badge ${order.orderStatus.toLowerCase().replace(/\"/g, '')}`}>{order.orderStatus.replace(/\"/g, '')}</span>
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-                    From: {getVendorName(order)} • {order.items?.length || 0} items
-                  </div>
-                </div>
-              ))}
-              {activeOrders.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>No active requests.</div>}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title">Fulfilled History</div>
-            </div>
-            <div style={{ padding: 16 }}>
-              {pastOrders.map(order => (
-                <div key={order.orderId} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 12, opacity: 0.7 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <strong>Req #{order.orderId}</strong>
-                    <span className={`badge ${order.orderStatus.toLowerCase().replace(/\"/g, '')}`}>{order.orderStatus.replace(/\"/g, '')}</span>
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-                    From: {getVendorName(order)}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
