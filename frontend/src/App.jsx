@@ -8,6 +8,7 @@ import Login from './pages/Login.jsx';
 import RetailerDashboard from './pages/retailer/RetailerDashboard.jsx';
 import PlaceOrder from './pages/retailer/PlaceOrder.jsx';
 import SupplierDashboard from './pages/supplier/SupplierDashboard.jsx';
+import SupplierIncomingOrders from './pages/supplier/SupplierIncomingOrders.jsx';
 import DistributorDashboard from './pages/distributor/DistributorDashboard.jsx';
 import DistributorRetailerRequests from './pages/distributor/DistributorRetailerRequests.jsx';
 import SupplierRequestStatus from './pages/distributor/SupplierRequestStatus.jsx';
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="/place-order" element={<PlaceOrder user={user} />} />
               <Route path="/retailer-requests" element={<DistributorRetailerRequests user={user} />} />
               <Route path="/supplier-requests" element={<SupplierRequestStatus user={user} />} />
+              <Route path="/supplier-incoming" element={<SupplierIncomingOrders user={user} />} />
               <Route path="/notifications" element={<Notifications />} />
               
               {/* Role Specific Logic can be added here */}

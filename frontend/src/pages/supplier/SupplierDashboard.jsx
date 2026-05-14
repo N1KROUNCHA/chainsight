@@ -127,50 +127,6 @@ export default function SupplierDashboard({ user }) {
       </div>
 
       <div className="grid-2" style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24 }}>
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title">Incoming Distributor & Retailer Orders</div>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th><th>Client</th><th>Items</th><th>Status</th><th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map(order => {
-                      const status = (order.orderStatus || '').replace(/\"/g, '');
-                      const client = order.distributor?.companyName || order.retailer?.shopName || 'Unknown Client';
-                      return (
-                      <tr key={order.orderId}>
-                        <td><span className="tx-hash">#{order.orderId}</span></td>
-                        <td className="primary">{client}</td>
-                        <td>{order.items?.length || 0} Products</td>
-                        <td>
-                          <span className={`badge ${status.toLowerCase()}`}>{status}</span>
-                        </td>
-                        <td>
-                          {status === 'PENDING' && (
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: 10 }} onClick={() => handleStatusChange(order.orderId, 'APPROVED')}>Approve</button>
-                              <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 10, color: 'var(--red)' }} onClick={() => handleStatusChange(order.orderId, 'REJECTED')}>Reject</button>
-                            </div>
-                          )}
-                          {status === 'APPROVED' && (
-                            <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 10, color: 'var(--accent)' }}>Create Shipment</button>
-                          )}
-                        </td>
-                      </tr>
-                    )})}
-                    {orders.length === 0 && (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No incoming requests yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-            </div>
-          </div>
-          
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div className="card">
                 <div className="card-header">
@@ -218,7 +174,9 @@ export default function SupplierDashboard({ user }) {
                     )}
                 </div>
               </div>
-
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div className="card">
                 <div className="card-header">
                   <div className="card-title">Regional Demand Analytics</div>
