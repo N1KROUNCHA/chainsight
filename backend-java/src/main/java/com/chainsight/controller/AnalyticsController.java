@@ -11,9 +11,22 @@ import java.util.*;
 public class AnalyticsController {
 
     private final OrderRepository orderRepository;
+    private final com.chainsight.service.BlockchainService blockchainService;
 
-    public AnalyticsController(OrderRepository orderRepository) {
+    public AnalyticsController(OrderRepository orderRepository, com.chainsight.service.BlockchainService blockchainService) {
         this.orderRepository = orderRepository;
+        this.blockchainService = blockchainService;
+    }
+
+    @GetMapping("/blockchain")
+    public Map<String, Object> getBlockchainData() {
+        List<com.chainsight.model.BlockchainEvent> events = blockchainService.getAllEvents();
+        return Map.of(
+            "contractAddress", "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "chainId", 1337,
+            "totalEvents", events.size(),
+            "events", events
+        );
     }
 
     @GetMapping("/bottleneck")

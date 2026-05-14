@@ -43,11 +43,15 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Order> updateStatus(
+    public ResponseEntity<?> updateStatus(
             @PathVariable Long id, 
             @RequestBody String status,
             @RequestParam(required = false) java.math.BigDecimal weight) {
-        return ResponseEntity.ok(orderService.updateStatus(id, status, weight));
+        try {
+            return ResponseEntity.ok(orderService.updateStatus(id, status, weight));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        }
     }
 
     @GetMapping("/open-requests")
@@ -71,11 +75,11 @@ public class OrderController {
     }
 
     @PatchMapping("/{orderId}/assign-truck/{truckId}")
-    public ResponseEntity<Order> assignTruckToOrder(@PathVariable Long orderId, @PathVariable Long truckId) {
+    public ResponseEntity<?> assignTruckToOrder(@PathVariable Long orderId, @PathVariable Long truckId) {
         try {
             return ResponseEntity.ok(orderService.assignTruckToOrder(orderId, truckId));
         } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
         }
     }
 }

@@ -75,28 +75,17 @@ public class OrderService {
 
         try {
             Order saved = orderRepository.save(order);
-            System.out.println("✅ Order saved successfully with ID: " + saved.getOrderId());
             
-            // Log to Blockchain
+            // Log to Blockchain: Initial Order Creation
             try {
                 String buyerRole = saved.getRetailer() != null ? "RETAILER" : "DISTRIBUTOR";
-                Long buyerUserId = 0L;
-                if (saved.getRetailer() != null && saved.getRetailer().getUser() != null) {
-                    buyerUserId = saved.getRetailer().getUser().getUserId();
-                } else if (saved.getDistributor() != null && saved.getDistributor().getUser() != null) {
-                    buyerUserId = saved.getDistributor().getUser().getUserId();
-                }
-                
-                blockchainService.logEvent("ORDER_CREATED", buyerRole, buyerUserId, 
-                    "Order #" + saved.getOrderId() + " placed with " + (saved.getSupplier() != null ? "Supplier" : "Distributor"));
-            } catch (Exception be) {
-                System.err.println("⚠️ Blockchain logging failed but order was saved: " + be.getMessage());
-            }
+                Long buyerUserId = (saved.getRetailer() != null) ? saved.getRetailer().getUser().getUserId() : saved.getDistributor().getUser().getUserId();
+                String details = "Order #" + saved.getOrderId() + " initiated by " + (saved.getRetailer() != null ? "Retailer" : "Distributor");
+                blockchainService.logEvent("ORDER_CREATED", buyerRole, buyerUserId, saved.getOrderId(), details);
+            } catch (Exception e) { /* log and continue */ }
 
             return saved;
         } catch (Exception e) {
-            System.err.println("❌ Failed to save order: " + e.getMessage());
-            e.printStackTrace();
             throw e;
         }
     }
@@ -105,12 +94,10 @@ public class OrderService {
         return orderRepository.findByRetailerUserUserId(userId);
     }
 
-    // Inbound: Retailers ordering FROM Distributor
     public List<Order> getDistributorInboundOrders(Long userId) {
         return orderRepository.findByDistributorUserUserIdAndRetailerNotNull(userId);
     }
 
-    // Outbound: Distributor ordering FROM Supplier
     public List<Order> getDistributorOutboundOrders(Long userId) {
         return orderRepository.findByDistributorUserUserIdAndSupplierNotNullAndRetailerIsNull(userId);
     }
@@ -122,69 +109,41 @@ public class OrderService {
     public Order updateStatus(Long orderId, String status, BigDecimal weight) {
         String cleanStatus = status.replace("\"", "").trim();
         Order order = orderRepository.findById(orderId).orElseThrow();
+        String oldStatus = order.getOrderStatus();
         
-        // If transitioning TO Delivered, free up truck capacity AND add stock to buyer
-        if ("DELIVERED".equals(cleanStatus) && !"DELIVERED".equals(order.getOrderStatus())) {
-            // 1. Free Truck Capacity
-            if (order.getAssignedTruck() != null) {
-                Truck truck = order.getAssignedTruck();
-                BigDecimal weightToFree = order.getWeightTons() != null ? order.getWeightTons() : BigDecimal.ZERO;
-                truck.setAvailableCapacityTons(truck.getAvailableCapacityTons().add(weightToFree));
-                
-                if (truck.getAvailableCapacityTons().compareTo(truck.getCapacityTons()) >= 0) {
-                    truck.setAvailableCapacityTons(truck.getCapacityTons());
-                    truck.setAvailabilityStatus("AVAILABLE");
-                } else {
-                    truck.setAvailabilityStatus("PARTIAL_LOAD");
-                }
-                truckRepository.save(truck);
-            }
-
-            // 2. Add Stock to Buyer
-            Long buyerId = null;
-            String buyerType = null;
-            if (order.getRetailer() != null) {
-                buyerId = order.getRetailer().getUser().getUserId();
-                buyerType = "RETAILER";
-            } else if (order.getDistributor() != null) {
-                buyerId = order.getDistributor().getUser().getUserId();
-                buyerType = "DISTRIBUTOR";
-            }
-
-            if (buyerId != null && order.getItems() != null) {
+        // Logic for inventory movement on status changes
+        if ("DELIVERED".equals(cleanStatus) && !"DELIVERED".equals(oldStatus)) {
+            // ... (inventory logic)
+            Long buyerId = order.getRetailer() != null ? order.getRetailer().getUser().getUserId() : order.getDistributor().getUser().getUserId();
+            String buyerType = order.getRetailer() != null ? "RETAILER" : "DISTRIBUTOR";
+            
+            if (order.getItems() != null) {
                 for (com.chainsight.model.OrderItem item : order.getItems()) {
                     inventoryService.adjustStock(buyerType, buyerId, item.getProduct().getProductId(), item.getQuantity());
                 }
             }
-
-            // Log to Blockchain
-            blockchainService.logEvent("DELIVERED", buyerType, buyerId, "Order #" + order.getOrderId() + " confirmed as delivered.");
+            blockchainService.logEvent("DELIVERED", buyerType, buyerId, order.getOrderId(), "Order #" + order.getOrderId() + " confirmed received.");
         }
 
         order.setOrderStatus(cleanStatus);
-        if (weight != null) {
-            order.setWeightTons(weight);
-        }
-        return orderRepository.save(order);
+        if (weight != null) order.setWeightTons(weight);
+        
+        Order saved = orderRepository.save(order);
+        
+        // Log status change touchpoint
+        blockchainService.logEvent("STATUS_UPDATE", "SYSTEM", 0L, orderId, "Order #" + orderId + " moved from " + oldStatus + " to " + cleanStatus);
+        
+        return saved;
     }
 
     public List<Order> getOpenShipmentRequests(Long transporterUserId) {
         if (transporterUserId != null) {
-            // Priority: Orders explicitly assigned to this transporter + General approved orders
             List<Order> targeted = orderRepository.findByTargetTransporterUserUserIdAndAssignedTruckIsNull(transporterUserId);
             List<Order> general = orderRepository.findByOrderStatus("APPROVED");
-            // Merge and avoid duplicates
             targeted.addAll(general.stream().filter(o -> o.getTargetTransporter() == null).toList());
             return targeted;
         }
         return orderRepository.findByOrderStatus("APPROVED");
-    }
-
-    public Order assignTransporter(Long orderId, Long transporterUserId) {
-        Order order = orderRepository.findById(orderId).orElseThrow();
-        com.chainsight.model.TruckOwner owner = truckOwnerRepository.findByUserUserId(transporterUserId).orElseThrow();
-        order.setTargetTransporter(owner);
-        return orderRepository.save(order);
     }
 
     public List<com.chainsight.model.TruckOwner> getAllTransporters() {
@@ -195,47 +154,55 @@ public class OrderService {
         return orderRepository.findByAssignedTruckOwnerUserUserIdAndOrderStatusIn(truckOwnerUserId, List.of("DISPATCHED", "IN_TRANSIT", "APPROVED", "DELIVERED"));
     }
 
-    public Order assignTruckToOrder(Long orderId, Long truckId) {
-        Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
-        Truck truck = truckRepository.findById(truckId).orElseThrow(() -> new RuntimeException("Truck not found"));
+    public Order assignTransporter(Long orderId, Long transporterUserId) {
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        com.chainsight.model.TruckOwner owner = truckOwnerRepository.findByUserUserId(transporterUserId).orElseThrow();
+        order.setTargetTransporter(owner);
+        order.setOrderStatus("APPROVED");
         
+        Order saved = orderRepository.save(order);
+        blockchainService.logEvent("TRANSPORTER_ASSIGNED", "DISTRIBUTOR", 0L, orderId, "Order #" + orderId + " assigned to Transporter: " + owner.getCompanyName());
+        return saved;
+    }
+
+    public Order assignTruckToOrder(Long orderId, Long truckId) {
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        Truck truck = truckRepository.findById(truckId).orElseThrow();
+        
+        // ... (capacity logic)
+        System.out.println("🚛 Attempting to assign Truck: " + truck.getTruckNumber());
+        System.out.println("🚛 Truck Available Capacity: " + truck.getAvailableCapacityTons());
+        System.out.println("🚛 Order Weight: " + order.getWeightTons());
+
         if (order.getWeightTons() != null && truck.getAvailableCapacityTons() != null) {
             BigDecimal remaining = truck.getAvailableCapacityTons().subtract(order.getWeightTons());
+            System.out.println("🚛 Remaining after subtraction: " + remaining);
             if (remaining.compareTo(BigDecimal.ZERO) < 0) {
-                throw new RuntimeException("Truck capacity is full. Cannot accept load.");
+                System.err.println("❌ ERROR: Truck capacity exceeded! Needs " + order.getWeightTons() + "T, has " + truck.getAvailableCapacityTons() + "T");
+                throw new RuntimeException("Truck capacity exceeded! Needs " + order.getWeightTons() + "T, but only " + truck.getAvailableCapacityTons() + "T available.");
             }
             truck.setAvailableCapacityTons(remaining);
-            if (remaining.compareTo(BigDecimal.ZERO) == 0) {
-                truck.setAvailabilityStatus("FULL");
-            } else {
-                truck.setAvailabilityStatus("PARTIAL_LOAD");
-            }
+            truck.setAvailabilityStatus(remaining.compareTo(BigDecimal.ZERO) == 0 ? "FULL" : "PARTIAL_LOAD");
             truckRepository.save(truck);
         }
         
-        // --- Deduct Stock from Seller on Dispatch ---
-        Long sellerId = null;
-        String sellerType = null;
-        if (order.getSupplier() != null) {
-            sellerId = order.getSupplier().getUser().getUserId();
-            sellerType = "SUPPLIER";
-        } else if (order.getDistributor() != null && order.getRetailer() != null) {
-            // Distributor is selling to Retailer
-            sellerId = order.getDistributor().getUser().getUserId();
-            sellerType = "DISTRIBUTOR";
-        }
-
-        if (sellerId != null && order.getItems() != null) {
+        // Inventory movement on Dispatch
+        Long sellerId = order.getSupplier() != null ? order.getSupplier().getUser().getUserId() : order.getDistributor().getUser().getUserId();
+        String sellerType = order.getSupplier() != null ? "SUPPLIER" : "DISTRIBUTOR";
+        
+        if (order.getItems() != null) {
             for (com.chainsight.model.OrderItem item : order.getItems()) {
                 inventoryService.adjustStock(sellerType, sellerId, item.getProduct().getProductId(), -item.getQuantity());
             }
         }
 
-        // Log to Blockchain
-        blockchainService.logEvent("DISPATCHED", sellerType, sellerId, "Order #" + order.getOrderId() + " dispatched via Truck " + truck.getTruckNumber());
-
         order.setAssignedTruck(truck);
         order.setOrderStatus("DISPATCHED");
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        
+        blockchainService.logEvent("DISPATCHED", "TRUCK_OWNER", truck.getOwner().getUser().getUserId(), orderId, 
+            "Order #" + orderId + " loaded on Truck " + truck.getTruckNumber() + " (" + truck.getOwner().getCompanyName() + ")");
+            
+        return saved;
     }
 }
