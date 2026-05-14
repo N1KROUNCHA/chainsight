@@ -9,6 +9,7 @@ import RetailerDashboard from './pages/retailer/RetailerDashboard.jsx';
 import PlaceOrder from './pages/retailer/PlaceOrder.jsx';
 import SupplierDashboard from './pages/supplier/SupplierDashboard.jsx';
 import DistributorDashboard from './pages/distributor/DistributorDashboard.jsx';
+import DistributorRetailerRequests from './pages/distributor/DistributorRetailerRequests.jsx';
 import TruckOwnerDashboard from './pages/truckOwner/TruckOwnerDashboard.jsx';
 
 import Dashboard from './pages/Dashboard.jsx';
@@ -68,6 +69,7 @@ export default function App() {
               {/* Common Routes */}
               <Route path="/" element={renderDashboard()} />
               <Route path="/place-order" element={<PlaceOrder user={user} />} />
+              <Route path="/retailer-requests" element={<DistributorRetailerRequests user={user} />} />
               <Route path="/notifications" element={<Notifications />} />
               
               {/* Role Specific Logic can be added here */}

@@ -90,99 +90,6 @@ export default function DistributorDashboard({ user }) {
       </div>
 
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-        {/* ── Pending Requests (need Approve / Reject) ── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">📬 Pending Retailer Requests</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {pendingRequests.filter(o => (o.orderStatus || '').replace(/"/g, '') === 'PENDING').length} awaiting your decision
-            </span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Retailer</th><th>Items</th><th>Status</th><th>Action</th></tr>
-              </thead>
-              <tbody>
-                {pendingRequests.length > 0 ? pendingRequests.map(order => {
-                  const status = (order.orderStatus || '').replace(/"/g, '');
-                  const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
-                  return (
-                    <tr key={order.orderId}>
-                      <td><span className="tx-hash">#{order.orderId}</span></td>
-                      <td className="primary">{order.retailer?.shopName || 'Retailer'}</td>
-                      <td>{order.items?.length || 0} item(s)</td>
-                      <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
-                      <td>
-                        {status === 'PENDING' && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button
-                              className="btn btn-primary"
-                              style={{ padding: '4px 10px', fontSize: 11 }}
-                              onClick={() => handleStatusChange(order.orderId, 'APPROVED')}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              className="btn btn-ghost"
-                              style={{ padding: '4px 10px', fontSize: 11, color: 'var(--red)' }}
-                              onClick={() => handleStatusChange(order.orderId, 'REJECTED')}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                        {status === 'REJECTED' && (
-                          <span style={{ fontSize: 11, color: 'var(--red)' }}>Request Rejected</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                }) : (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
-                    No pending requests at this time.
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Active Shipments ── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">🚛 Active Shipments</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Approved orders and ongoing deliveries</span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Retailer</th><th>Items</th><th>Truck</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {activeShipments.length > 0 ? activeShipments.map(order => {
-                  const status = (order.orderStatus || '').replace(/"/g, '');
-                  const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
-                  return (
-                    <tr key={order.orderId}>
-                      <td><span className="tx-hash">#{order.orderId}</span></td>
-                      <td className="primary">{order.retailer?.shopName || 'Retailer'}</td>
-                      <td>{order.items?.length || 0} item(s)</td>
-                      <td style={{ fontSize: 12 }}>{order.assignedTruck?.truckNumber || <span style={{ color: 'var(--text-muted)' }}>Awaiting truck</span>}</td>
-                      <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
-                    </tr>
-                  );
-                }) : (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
-                    No active shipments yet.
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* ── Stock Forecast ── */}
         <div className="card">
           <div className="card-header">
@@ -214,7 +121,6 @@ export default function DistributorDashboard({ user }) {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
