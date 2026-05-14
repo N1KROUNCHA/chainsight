@@ -13,6 +13,8 @@ export default function SupplierIncomingOrders({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [selectedWeight, setSelectedWeight] = useState({});
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -29,7 +31,12 @@ export default function SupplierIncomingOrders({ user }) {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      await api.updateOrderStatus(orderId, newStatus);
+      const weight = selectedWeight[orderId];
+      if (newStatus === 'APPROVED' && (!weight || parseFloat(weight) <= 0)) {
+        alert('Please specify the order weight in Tons before approving.');
+        return;
+      }
+      await api.updateOrderStatus(orderId, newStatus, weight);
       loadData();
     } catch (err) {
       alert('Failed to update order status');
@@ -71,7 +78,7 @@ export default function SupplierIncomingOrders({ user }) {
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Client</th><th>Items</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>ID</th><th>Client</th><th>Items</th><th>Weight (T)</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {pendingOrders.length > 0 ? pendingOrders.map(order => {
@@ -81,6 +88,16 @@ export default function SupplierIncomingOrders({ user }) {
                       <td><span className="tx-hash">#{order.orderId}</span></td>
                       <td className="primary">{client}</td>
                       <td>{order.items?.length || 0} Products</td>
+                      <td>
+                        <input 
+                          type="number" 
+                          step="0.1" 
+                          placeholder="0.0"
+                          style={{ width: 60, padding: '4px 8px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-card-2)' }}
+                          value={selectedWeight[order.orderId] || ''}
+                          onChange={e => setSelectedWeight({ ...selectedWeight, [order.orderId]: e.target.value })}
+                        />
+                      </td>
                       <td><span className="badge warn">PENDING</span></td>
                       <td>
                         <div style={{ display: 'flex', gap: 8 }}>
