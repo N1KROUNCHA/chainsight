@@ -18,6 +18,8 @@ public class DataSeeder implements CommandLineRunner {
     private final TruckRepository truckRepository;
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
+    private final BlockchainEventRepository blockchainEventRepository;
+    private final DemandForecastRepository demandForecastRepository;
 
     public DataSeeder(UserRepository userRepository,
                       SupplierRepository supplierRepository,
@@ -26,7 +28,9 @@ public class DataSeeder implements CommandLineRunner {
                       TruckOwnerRepository truckOwnerRepository,
                       TruckRepository truckRepository,
                       ProductRepository productRepository,
-                      InventoryRepository inventoryRepository) {
+                      InventoryRepository inventoryRepository,
+                      BlockchainEventRepository blockchainEventRepository,
+                      DemandForecastRepository demandForecastRepository) {
         this.userRepository = userRepository;
         this.supplierRepository = supplierRepository;
         this.distributorRepository = distributorRepository;
@@ -35,6 +39,8 @@ public class DataSeeder implements CommandLineRunner {
         this.truckRepository = truckRepository;
         this.productRepository = productRepository;
         this.inventoryRepository = inventoryRepository;
+        this.blockchainEventRepository = blockchainEventRepository;
+        this.demandForecastRepository = demandForecastRepository;
     }
 
     @Override
@@ -189,7 +195,11 @@ public class DataSeeder implements CommandLineRunner {
         createTransporter("Oceanic Freight", "oceanic_trucks@msme.com", "Kochi", "KL-07-OF-9999", "22.00");
         createTransporter("Mountain Express", "mountain_trucks@msme.com", "Srinagar", "JK-01-ME-1111", "12.00");
 
-        System.out.println("✅ Database Seeded with Extended Multi-Role Test Users, Products, Trucks, and Inventory");
+        // --- Seed Operational Analytics ---
+        blockchainEventRepository.save(new BlockchainEvent("0x7e221...a881", "SYSTEM_INIT", "ADMIN", 1L, "Supply Chain OS Initialized."));
+        blockchainEventRepository.save(new BlockchainEvent("0x9c41a...d902", "INVENTORY_SYNC", "SUPPLIER", 2L, "Bulk inventory upload completed for Agro-Pure."));
+        
+        System.out.println("✅ Database Seeded with Extended Multi-Role Test Users, Products, Trucks, Inventory, and Operational Analytics");
     }
 
     private void createSupplier(String company, String email, String city, String cat, String pName, String unit) {

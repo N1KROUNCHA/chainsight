@@ -1,22 +1,15 @@
 package com.chainsight.service;
 
-import com.chainsight.model.Order;
-import com.chainsight.model.Retailer;
-import com.chainsight.model.Distributor;
-import com.chainsight.model.Supplier;
-import com.chainsight.model.Truck;
-import com.chainsight.repository.OrderRepository;
-import com.chainsight.repository.RetailerRepository;
-import com.chainsight.repository.DistributorRepository;
-import com.chainsight.repository.SupplierRepository;
-import com.chainsight.repository.TruckRepository;
-import com.chainsight.repository.TruckOwnerRepository;
+import com.chainsight.model.*;
+import com.chainsight.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Service
+@Transactional
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -25,19 +18,28 @@ public class OrderService {
     private final SupplierRepository supplierRepository;
     private final TruckRepository truckRepository;
     private final TruckOwnerRepository truckOwnerRepository;
+    private final ProductRepository productRepository;
+    private final InventoryService inventoryService;
+    private final BlockchainService blockchainService;
 
     public OrderService(OrderRepository orderRepository, 
                         RetailerRepository retailerRepository,
                         DistributorRepository distributorRepository,
                         SupplierRepository supplierRepository,
                         TruckRepository truckRepository,
-                        TruckOwnerRepository truckOwnerRepository) {
+                        TruckOwnerRepository truckOwnerRepository,
+                        ProductRepository productRepository,
+                        InventoryService inventoryService,
+                        BlockchainService blockchainService) {
         this.orderRepository = orderRepository;
         this.retailerRepository = retailerRepository;
         this.distributorRepository = distributorRepository;
         this.supplierRepository = supplierRepository;
         this.truckRepository = truckRepository;
         this.truckOwnerRepository = truckOwnerRepository;
+        this.productRepository = productRepository;
+        this.inventoryService = inventoryService;
+        this.blockchainService = blockchainService;
     }
 
     public Order createOrder(Order order) {
@@ -61,13 +63,42 @@ public class OrderService {
         }
 
         order.setOrderStatus("PENDING");
-        // For simplicity, if weightTons is not provided, we can default to something or just leave it. 
         if (order.getItems() != null) {
-            order.getItems().forEach(item -> item.setOrder(order));
+            order.getItems().forEach(item -> {
+                item.setOrder(order);
+                if (item.getProduct() != null && item.getProduct().getProductId() != null) {
+                    Product p = productRepository.findById(item.getProduct().getProductId()).orElse(null);
+                    if (p != null) item.setProduct(p);
+                }
+            });
         }
-        Order saved = orderRepository.save(order);
-        System.out.println("Order saved successfully with ID: " + saved.getOrderId());
-        return saved;
+
+        try {
+            Order saved = orderRepository.save(order);
+            System.out.println("✅ Order saved successfully with ID: " + saved.getOrderId());
+            
+            // Log to Blockchain
+            try {
+                String buyerRole = saved.getRetailer() != null ? "RETAILER" : "DISTRIBUTOR";
+                Long buyerUserId = 0L;
+                if (saved.getRetailer() != null && saved.getRetailer().getUser() != null) {
+                    buyerUserId = saved.getRetailer().getUser().getUserId();
+                } else if (saved.getDistributor() != null && saved.getDistributor().getUser() != null) {
+                    buyerUserId = saved.getDistributor().getUser().getUserId();
+                }
+                
+                blockchainService.logEvent("ORDER_CREATED", buyerRole, buyerUserId, 
+                    "Order #" + saved.getOrderId() + " placed with " + (saved.getSupplier() != null ? "Supplier" : "Distributor"));
+            } catch (Exception be) {
+                System.err.println("⚠️ Blockchain logging failed but order was saved: " + be.getMessage());
+            }
+
+            return saved;
+        } catch (Exception e) {
+            System.err.println("❌ Failed to save order: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     public List<Order> getRetailerOrders(Long userId) {
@@ -92,20 +123,42 @@ public class OrderService {
         String cleanStatus = status.replace("\"", "").trim();
         Order order = orderRepository.findById(orderId).orElseThrow();
         
-        // If transitioning TO Delivered, free up truck capacity
-        if ("DELIVERED".equals(cleanStatus) && !"DELIVERED".equals(order.getOrderStatus()) && order.getAssignedTruck() != null) {
-            Truck truck = order.getAssignedTruck();
-            BigDecimal weightToFree = order.getWeightTons() != null ? order.getWeightTons() : BigDecimal.ZERO;
-            truck.setAvailableCapacityTons(truck.getAvailableCapacityTons().add(weightToFree));
-            
-            // If truck is now below its original capacity, it's either available or partial
-            if (truck.getAvailableCapacityTons().compareTo(truck.getCapacityTons()) >= 0) {
-                truck.setAvailableCapacityTons(truck.getCapacityTons());
-                truck.setAvailabilityStatus("AVAILABLE");
-            } else {
-                truck.setAvailabilityStatus("PARTIAL_LOAD");
+        // If transitioning TO Delivered, free up truck capacity AND add stock to buyer
+        if ("DELIVERED".equals(cleanStatus) && !"DELIVERED".equals(order.getOrderStatus())) {
+            // 1. Free Truck Capacity
+            if (order.getAssignedTruck() != null) {
+                Truck truck = order.getAssignedTruck();
+                BigDecimal weightToFree = order.getWeightTons() != null ? order.getWeightTons() : BigDecimal.ZERO;
+                truck.setAvailableCapacityTons(truck.getAvailableCapacityTons().add(weightToFree));
+                
+                if (truck.getAvailableCapacityTons().compareTo(truck.getCapacityTons()) >= 0) {
+                    truck.setAvailableCapacityTons(truck.getCapacityTons());
+                    truck.setAvailabilityStatus("AVAILABLE");
+                } else {
+                    truck.setAvailabilityStatus("PARTIAL_LOAD");
+                }
+                truckRepository.save(truck);
             }
-            truckRepository.save(truck);
+
+            // 2. Add Stock to Buyer
+            Long buyerId = null;
+            String buyerType = null;
+            if (order.getRetailer() != null) {
+                buyerId = order.getRetailer().getUser().getUserId();
+                buyerType = "RETAILER";
+            } else if (order.getDistributor() != null) {
+                buyerId = order.getDistributor().getUser().getUserId();
+                buyerType = "DISTRIBUTOR";
+            }
+
+            if (buyerId != null && order.getItems() != null) {
+                for (com.chainsight.model.OrderItem item : order.getItems()) {
+                    inventoryService.adjustStock(buyerType, buyerId, item.getProduct().getProductId(), item.getQuantity());
+                }
+            }
+
+            // Log to Blockchain
+            blockchainService.logEvent("DELIVERED", buyerType, buyerId, "Order #" + order.getOrderId() + " confirmed as delivered.");
         }
 
         order.setOrderStatus(cleanStatus);
@@ -160,6 +213,27 @@ public class OrderService {
             truckRepository.save(truck);
         }
         
+        // --- Deduct Stock from Seller on Dispatch ---
+        Long sellerId = null;
+        String sellerType = null;
+        if (order.getSupplier() != null) {
+            sellerId = order.getSupplier().getUser().getUserId();
+            sellerType = "SUPPLIER";
+        } else if (order.getDistributor() != null && order.getRetailer() != null) {
+            // Distributor is selling to Retailer
+            sellerId = order.getDistributor().getUser().getUserId();
+            sellerType = "DISTRIBUTOR";
+        }
+
+        if (sellerId != null && order.getItems() != null) {
+            for (com.chainsight.model.OrderItem item : order.getItems()) {
+                inventoryService.adjustStock(sellerType, sellerId, item.getProduct().getProductId(), -item.getQuantity());
+            }
+        }
+
+        // Log to Blockchain
+        blockchainService.logEvent("DISPATCHED", sellerType, sellerId, "Order #" + order.getOrderId() + " dispatched via Truck " + truck.getTruckNumber());
+
         order.setAssignedTruck(truck);
         order.setOrderStatus("DISPATCHED");
         return orderRepository.save(order);
