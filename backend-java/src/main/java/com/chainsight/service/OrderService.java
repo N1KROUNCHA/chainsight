@@ -74,18 +74,29 @@ public class OrderService {
         }
 
         try {
+            System.out.println("DEBUG: Saving order...");
             Order saved = orderRepository.save(order);
+            System.out.println("DEBUG: Order saved with ID: " + saved.getOrderId());
             
             // Log to Blockchain: Initial Order Creation
             try {
+                System.out.println("DEBUG: Resolving buyer info for blockchain...");
                 String buyerRole = saved.getRetailer() != null ? "RETAILER" : "DISTRIBUTOR";
-                Long buyerUserId = (saved.getRetailer() != null) ? saved.getRetailer().getUser().getUserId() : saved.getDistributor().getUser().getUserId();
+                Long buyerUserId = (saved.getRetailer() != null) 
+                    ? (saved.getRetailer().getUser() != null ? saved.getRetailer().getUser().getUserId() : 0L) 
+                    : (saved.getDistributor() != null && saved.getDistributor().getUser() != null ? saved.getDistributor().getUser().getUserId() : 0L);
+                
                 String details = "Order #" + saved.getOrderId() + " initiated by " + (saved.getRetailer() != null ? "Retailer" : "Distributor");
                 blockchainService.logEvent("ORDER_CREATED", buyerRole, buyerUserId, saved.getOrderId(), details);
-            } catch (Exception e) { /* log and continue */ }
+            } catch (Exception e) {
+                System.err.println("DEBUG: Blockchain log failed in createOrder (caught): " + e.getMessage());
+                e.printStackTrace();
+            }
 
             return saved;
         } catch (Exception e) {
+            System.err.println("DEBUG: Order save failed: " + e.getMessage());
+            e.printStackTrace();
             throw e;
         }
     }
