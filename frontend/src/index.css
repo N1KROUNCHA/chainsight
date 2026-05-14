@@ -512,6 +512,14 @@ body {
 .badge.info    { background: var(--blue-soft);   color: var(--accent); } .badge.info::before{ background: var(--accent); }
 .badge.purple  { background: var(--purple-soft); color: var(--accent-2); } .badge.purple::before { background: var(--accent-2); }
 .badge.cyan    { background: rgba(6,182,212,0.12); color: var(--accent-3); } .badge.cyan::before { background: var(--accent-3); }
+.badge.success { background: var(--green-soft);  color: var(--green);  } .badge.success::before { background: var(--green); }
+.badge.danger  { background: var(--red-soft);    color: var(--red);    } .badge.danger::before  { background: var(--red); }
+/* Order status aliases */
+.badge.pending   { background: var(--yellow-soft); color: var(--yellow); } .badge.pending::before   { background: var(--yellow); }
+.badge.approved  { background: var(--blue-soft);   color: var(--accent); } .badge.approved::before  { background: var(--accent); }
+.badge.rejected  { background: var(--red-soft);    color: var(--red);    } .badge.rejected::before  { background: var(--red); }
+.badge.dispatched{ background: rgba(6,182,212,0.12); color: var(--accent-3); } .badge.dispatched::before { background: var(--accent-3); }
+.badge.delivered { background: var(--green-soft);  color: var(--green);  } .badge.delivered::before  { background: var(--green); }
 
 /* ── Buttons ────────────────────────────────────────────────────── */
 .btn {
