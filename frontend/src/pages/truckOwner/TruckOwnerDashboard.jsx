@@ -305,10 +305,10 @@ export default function TruckOwnerDashboard({ user }) {
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead>
-                  <tr><th>Order #</th><th>Truck</th><th>Load</th><th>Route</th><th>Status</th><th>Action</th></tr>
+                  <tr><th>Order #</th><th>Truck</th><th>Load</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
-                  {activeJobs.map(job => {
+                  {activeJobs.filter(j => (j.orderStatus || '').replace(/"/g, '') !== 'DELIVERED').map(job => {
                     const status = (job.orderStatus || '').replace(/"/g, '');
                     const badgeClass = status === 'DISPATCHED' ? 'info' : status === 'IN_TRANSIT' ? 'primary' : 'success';
                     return (
@@ -316,7 +316,6 @@ export default function TruckOwnerDashboard({ user }) {
                         <td><span className="tx-hash">#{job.orderId}</span></td>
                         <td style={{ fontWeight: 600 }}>{job.assignedTruck?.truckNumber || 'N/A'}</td>
                         <td>{job.weightTons ? job.weightTons + ' T' : '—'}</td>
-                        <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{job.assignedTruck?.route || '—'}</td>
                         <td><span className={`badge ${badgeClass}`}>{status}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: 6 }}>
@@ -343,8 +342,35 @@ export default function TruckOwnerDashboard({ user }) {
                       </tr>
                     );
                   })}
-                  {activeJobs.length === 0 && (
+                  {activeJobs.filter(j => (j.orderStatus || '').replace(/"/g, '') !== 'DELIVERED').length === 0 && (
                     <tr><td colSpan="5" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>No active deliveries.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── Completed Jobs ── */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">Fulfillment History</div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr><th>Order #</th><th>Truck</th><th>Load</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {activeJobs.filter(j => (j.orderStatus || '').replace(/"/g, '') === 'DELIVERED').map(job => (
+                    <tr key={job.orderId} style={{ opacity: 0.7 }}>
+                      <td><span className="tx-hash">#{job.orderId}</span></td>
+                      <td>{job.assignedTruck?.truckNumber || 'N/A'}</td>
+                      <td>{job.weightTons} T</td>
+                      <td><span className="badge success">DELIVERED</span></td>
+                    </tr>
+                  ))}
+                  {activeJobs.filter(j => (j.orderStatus || '').replace(/"/g, '') === 'DELIVERED').length === 0 && (
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>No completed jobs yet.</td></tr>
                   )}
                 </tbody>
               </table>

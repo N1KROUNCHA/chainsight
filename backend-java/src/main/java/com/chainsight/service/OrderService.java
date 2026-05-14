@@ -139,7 +139,7 @@ public class OrderService {
     }
 
     public List<Order> getActiveJobs(Long truckOwnerUserId) {
-        return orderRepository.findByAssignedTruckOwnerUserUserIdAndOrderStatusIn(truckOwnerUserId, List.of("DISPATCHED", "IN_TRANSIT", "APPROVED"));
+        return orderRepository.findByAssignedTruckOwnerUserUserIdAndOrderStatusIn(truckOwnerUserId, List.of("DISPATCHED", "IN_TRANSIT", "APPROVED", "DELIVERED"));
     }
 
     public Order assignTruckToOrder(Long orderId, Long truckId) {

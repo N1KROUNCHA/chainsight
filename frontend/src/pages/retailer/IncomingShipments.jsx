@@ -35,6 +35,15 @@ export default function IncomingShipments({ user }) {
 
   useEffect(() => { loadData(); }, [user]);
 
+  const handleMarkReceived = async (orderId) => {
+    try {
+      await api.updateOrderStatus(orderId, 'DELIVERED');
+      loadData();
+    } catch (err) {
+      alert('Failed to mark order as delivered.');
+    }
+  };
+
   if (loading) return <div className="loading-ring" />;
 
   const getVendorName = (order) => order.supplier?.companyName || order.distributor?.companyName || 'Vendor';
@@ -54,7 +63,7 @@ export default function IncomingShipments({ user }) {
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
-              <tr><th>Order ID</th><th>Vendor</th><th>Truck #</th><th>Driver</th><th>ETA</th><th>Status</th><th>Last Update</th></tr>
+              <tr><th>Order ID</th><th>Vendor</th><th>Truck #</th><th>Driver</th><th>ETA</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {orders.map(order => {
@@ -62,7 +71,6 @@ export default function IncomingShipments({ user }) {
                 const badge = STATUS_BADGE[status] || { color: 'info', label: status };
                 const hasTruck = !!order.assignedTruck;
                 
-                // Mock ETA calculation
                 let eta = '—';
                 if (status === 'DISPATCHED') eta = '2.5 hrs';
                 if (status === 'IN_TRANSIT') eta = '45 mins';
@@ -81,8 +89,19 @@ export default function IncomingShipments({ user }) {
                       {eta}
                     </td>
                     <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
-                    <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <td>
+                      {['DISPATCHED', 'IN_TRANSIT'].includes(status) && (
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ padding: '4px 10px', fontSize: 10 }}
+                          onClick={() => handleMarkReceived(order.orderId)}
+                        >
+                          Confirm Receipt
+                        </button>
+                      )}
+                      {status === 'DELIVERED' && (
+                        <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600 }}>✅ Completed</span>
+                      )}
                     </td>
                   </tr>
                 );
