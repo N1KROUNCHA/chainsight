@@ -30,6 +30,12 @@ public class Order {
     @Column(name = "order_status", length = 30)
     private String orderStatus; // PENDING, APPROVED, DISPATCHED, DELIVERED, CANCELLED
 
+    @ManyToOne
+    @JoinColumn(name = "truck_id")
+    private Truck assignedTruck;
+
+    @Column(name = "weight_tons", precision = 10, scale = 2)
+    private BigDecimal weightTons;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -50,6 +56,10 @@ public class Order {
     public void setOrderStatus(String orderStatus) { this.orderStatus = orderStatus; }
     public Supplier getSupplier() { return supplier; }
     public void setSupplier(Supplier supplier) { this.supplier = supplier; }
+    public Truck getAssignedTruck() { return assignedTruck; }
+    public void setAssignedTruck(Truck assignedTruck) { this.assignedTruck = assignedTruck; }
+    public BigDecimal getWeightTons() { return weightTons; }
+    public void setWeightTons(BigDecimal weightTons) { this.weightTons = weightTons; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public List<OrderItem> getItems() { return items; }

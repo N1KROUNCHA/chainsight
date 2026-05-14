@@ -41,4 +41,23 @@ public class OrderController {
     public ResponseEntity<Order> updateStatus(@PathVariable Long id, @RequestBody String status) {
         return ResponseEntity.ok(orderService.updateStatus(id, status));
     }
+
+    @GetMapping("/open-requests")
+    public ResponseEntity<List<Order>> getOpenShipmentRequests() {
+        return ResponseEntity.ok(orderService.getOpenShipmentRequests());
+    }
+
+    @GetMapping("/truck-owner/{userId}/active-jobs")
+    public ResponseEntity<List<Order>> getActiveJobs(@PathVariable Long userId) {
+        return ResponseEntity.ok(orderService.getActiveJobs(userId));
+    }
+
+    @PatchMapping("/{orderId}/assign-truck/{truckId}")
+    public ResponseEntity<Order> assignTruckToOrder(@PathVariable Long orderId, @PathVariable Long truckId) {
+        try {
+            return ResponseEntity.ok(orderService.assignTruckToOrder(orderId, truckId));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
 }

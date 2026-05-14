@@ -5,6 +5,8 @@ import com.chainsight.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 @Component
 public class DataSeeder implements CommandLineRunner {
 
@@ -13,14 +15,16 @@ public class DataSeeder implements CommandLineRunner {
     private final DistributorRepository distributorRepository;
     private final RetailerRepository retailerRepository;
     private final TruckOwnerRepository truckOwnerRepository;
+    private final TruckRepository truckRepository;
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
 
-    public DataSeeder(UserRepository userRepository, 
+    public DataSeeder(UserRepository userRepository,
                       SupplierRepository supplierRepository,
                       DistributorRepository distributorRepository,
                       RetailerRepository retailerRepository,
                       TruckOwnerRepository truckOwnerRepository,
+                      TruckRepository truckRepository,
                       ProductRepository productRepository,
                       InventoryRepository inventoryRepository) {
         this.userRepository = userRepository;
@@ -28,6 +32,7 @@ public class DataSeeder implements CommandLineRunner {
         this.distributorRepository = distributorRepository;
         this.retailerRepository = retailerRepository;
         this.truckOwnerRepository = truckOwnerRepository;
+        this.truckRepository = truckRepository;
         this.productRepository = productRepository;
         this.inventoryRepository = inventoryRepository;
     }
@@ -43,7 +48,7 @@ public class DataSeeder implements CommandLineRunner {
         sUser.setPassword("password123");
         sUser.setRole("SUPPLIER");
         userRepository.save(sUser);
-        
+
         Supplier supplier = new Supplier();
         supplier.setUser(sUser);
         supplier.setCompanyName("Global Fabrics Ltd");
@@ -57,7 +62,7 @@ public class DataSeeder implements CommandLineRunner {
         dUser.setPassword("password123");
         dUser.setRole("DISTRIBUTOR");
         userRepository.save(dUser);
-        
+
         Distributor distributor = new Distributor();
         distributor.setUser(dUser);
         distributor.setCompanyName("North India Logistics Hub");
@@ -72,7 +77,7 @@ public class DataSeeder implements CommandLineRunner {
         rUser.setPassword("password123");
         rUser.setRole("RETAILER");
         userRepository.save(rUser);
-        
+
         Retailer retailer = new Retailer();
         retailer.setUser(rUser);
         retailer.setShopName("City Supermarket #1");
@@ -86,11 +91,42 @@ public class DataSeeder implements CommandLineRunner {
         tUser.setPassword("password123");
         tUser.setRole("TRUCK_OWNER");
         userRepository.save(tUser);
-        
+
         TruckOwner owner = new TruckOwner();
         owner.setUser(tUser);
         owner.setCompanyName("Swift Transporters Co.");
         truckOwnerRepository.save(owner);
+
+        // 4a. Seed Trucks for this owner (3 sizes: Small=5T, Medium=15T, Large=25T)
+        Truck truck1 = new Truck();
+        truck1.setOwner(owner);
+        truck1.setTruckNumber("MH-04-AB-1234");
+        truck1.setCapacityTons(new BigDecimal("5.00"));
+        truck1.setAvailableCapacityTons(new BigDecimal("5.00"));
+        truck1.setAvailabilityStatus("AVAILABLE");
+        truck1.setCurrentCity("Mumbai");
+        truck1.setRoute("Mumbai → Pune → Hyderabad");
+        truckRepository.save(truck1);
+
+        Truck truck2 = new Truck();
+        truck2.setOwner(owner);
+        truck2.setTruckNumber("GJ-01-CD-5678");
+        truck2.setCapacityTons(new BigDecimal("15.00"));
+        truck2.setAvailableCapacityTons(new BigDecimal("15.00"));
+        truck2.setAvailabilityStatus("AVAILABLE");
+        truck2.setCurrentCity("Surat");
+        truck2.setRoute("Surat → Indore → Bhopal");
+        truckRepository.save(truck2);
+
+        Truck truck3 = new Truck();
+        truck3.setOwner(owner);
+        truck3.setTruckNumber("DL-03-EF-9012");
+        truck3.setCapacityTons(new BigDecimal("25.00"));
+        truck3.setAvailableCapacityTons(new BigDecimal("25.00"));
+        truck3.setAvailabilityStatus("AVAILABLE");
+        truck3.setCurrentCity("Delhi");
+        truck3.setRoute("Delhi → Jaipur → Ahmedabad");
+        truckRepository.save(truck3);
 
         // 5. Create Sample Products
         Product p1 = new Product();
@@ -133,6 +169,6 @@ public class DataSeeder implements CommandLineRunner {
         di2.setSafetyStock(100);
         inventoryRepository.save(di2);
 
-        System.out.println("✅ Database Seeded with Multi-Role Test Users, Products, and Distributor Inventory");
+        System.out.println("✅ Database Seeded with Multi-Role Test Users, Products, Trucks, and Distributor Inventory");
     }
 }

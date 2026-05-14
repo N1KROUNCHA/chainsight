@@ -35,6 +35,13 @@ export const api = {
   alerts:     () => get('/alerts'),
   qr:         () => get('/qr'),
   qrCode:   (code) => get(`/qr/${code}`),
+
+  // Transporter Module
+  trucks: (ownerId) => get(`/trucks/owner/${ownerId}`),
+  addTruck: (data) => post('/trucks', data),
+  openRequests: () => get('/orders/open-requests'),
+  activeJobs: (ownerId) => get(`/orders/truck-owner/${ownerId}/active-jobs`),
+  assignTruck: (orderId, truckId) => patch(`/orders/${orderId}/assign-truck/${truckId}`, {}),
 };
 
 async function post(path, body) {
