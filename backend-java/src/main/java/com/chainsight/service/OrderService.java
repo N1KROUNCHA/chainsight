@@ -10,6 +10,7 @@ import com.chainsight.repository.RetailerRepository;
 import com.chainsight.repository.DistributorRepository;
 import com.chainsight.repository.SupplierRepository;
 import com.chainsight.repository.TruckRepository;
+import com.chainsight.repository.TruckOwnerRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -23,17 +24,20 @@ public class OrderService {
     private final DistributorRepository distributorRepository;
     private final SupplierRepository supplierRepository;
     private final TruckRepository truckRepository;
+    private final TruckOwnerRepository truckOwnerRepository;
 
     public OrderService(OrderRepository orderRepository, 
                         RetailerRepository retailerRepository,
                         DistributorRepository distributorRepository,
                         SupplierRepository supplierRepository,
-                        TruckRepository truckRepository) {
+                        TruckRepository truckRepository,
+                        TruckOwnerRepository truckOwnerRepository) {
         this.orderRepository = orderRepository;
         this.retailerRepository = retailerRepository;
         this.distributorRepository = distributorRepository;
         this.supplierRepository = supplierRepository;
         this.truckRepository = truckRepository;
+        this.truckOwnerRepository = truckOwnerRepository;
     }
 
     public Order createOrder(Order order) {
@@ -95,12 +99,31 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    public List<Order> getOpenShipmentRequests() {
+    public List<Order> getOpenShipmentRequests(Long transporterUserId) {
+        if (transporterUserId != null) {
+            // Priority: Orders explicitly assigned to this transporter + General approved orders
+            List<Order> targeted = orderRepository.findByTargetTransporterUserUserIdAndAssignedTruckIsNull(transporterUserId);
+            List<Order> general = orderRepository.findByOrderStatus("APPROVED");
+            // Merge and avoid duplicates
+            targeted.addAll(general.stream().filter(o -> o.getTargetTransporter() == null).toList());
+            return targeted;
+        }
         return orderRepository.findByOrderStatus("APPROVED");
     }
 
+    public Order assignTransporter(Long orderId, Long transporterUserId) {
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        com.chainsight.model.TruckOwner owner = truckOwnerRepository.findByUserUserId(transporterUserId).orElseThrow();
+        order.setTargetTransporter(owner);
+        return orderRepository.save(order);
+    }
+
+    public List<com.chainsight.model.TruckOwner> getAllTransporters() {
+        return truckOwnerRepository.findAll();
+    }
+
     public List<Order> getActiveJobs(Long truckOwnerUserId) {
-        return orderRepository.findByAssignedTruckOwnerUserUserIdAndOrderStatusIn(truckOwnerUserId, List.of("DISPATCHED", "IN_TRANSIT"));
+        return orderRepository.findByAssignedTruckOwnerUserUserIdAndOrderStatusIn(truckOwnerUserId, List.of("DISPATCHED", "IN_TRANSIT", "APPROVED"));
     }
 
     public Order assignTruckToOrder(Long orderId, Long truckId) {

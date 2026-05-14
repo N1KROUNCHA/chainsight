@@ -7,6 +7,7 @@ import Login from './pages/Login.jsx';
 // Existing Pages (Refactor to generic/admin for now)
 import RetailerDashboard from './pages/retailer/RetailerDashboard.jsx';
 import PlaceOrder from './pages/retailer/PlaceOrder.jsx';
+import IncomingShipments from './pages/retailer/IncomingShipments.jsx';
 import SupplierDashboard from './pages/supplier/SupplierDashboard.jsx';
 import SupplierIncomingOrders from './pages/supplier/SupplierIncomingOrders.jsx';
 import DistributorDashboard from './pages/distributor/DistributorDashboard.jsx';
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="/place-order" element={<PlaceOrder user={user} />} />
               <Route path="/retailer-requests" element={<DistributorRetailerRequests user={user} />} />
               <Route path="/supplier-requests" element={<SupplierRequestStatus user={user} />} />
+              <Route path="/incoming-shipments" element={<IncomingShipments user={user} />} />
               <Route path="/supplier-incoming" element={<SupplierIncomingOrders user={user} />} />
               <Route path="/notifications" element={<Notifications />} />
               

@@ -22,7 +22,7 @@ export default function PlaceOrder({ user }) {
           orderList = await api.retailerOrders(user.userId) || [];
         } else if (user?.role === 'DISTRIBUTOR') {
           suppList = await api.suppliers();
-          orderList = await api.distributorOrders(user.userId) || [];
+          orderList = await api.distributorOutboundOrders(user.userId) || [];
         }
         
         // Combine into unified vendor list
@@ -113,7 +113,7 @@ export default function PlaceOrder({ user }) {
         alert(`✅ Order #${result.orderId} placed successfully! Awaiting approval from ${selectedVendor.name}.`);
         setCart([]);
         setSelectedVendor(null);
-        const orderList = isRetailer ? await api.retailerOrders(user.userId) : await api.distributorOrders(user.userId);
+        const orderList = isRetailer ? await api.retailerOrders(user.userId) : await api.distributorOutboundOrders(user.userId);
         setOrders(orderList || []);
       } else {
         alert('Order may have failed — check the browser console for details.');

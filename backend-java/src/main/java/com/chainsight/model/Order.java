@@ -34,6 +34,10 @@ public class Order {
     @JoinColumn(name = "truck_id")
     private Truck assignedTruck;
 
+    @ManyToOne
+    @JoinColumn(name = "target_transporter_id")
+    private TruckOwner targetTransporter;
+
     @Column(name = "weight_tons", precision = 10, scale = 2)
     private BigDecimal weightTons;
 
@@ -58,6 +62,8 @@ public class Order {
     public void setSupplier(Supplier supplier) { this.supplier = supplier; }
     public Truck getAssignedTruck() { return assignedTruck; }
     public void setAssignedTruck(Truck assignedTruck) { this.assignedTruck = assignedTruck; }
+    public TruckOwner getTargetTransporter() { return targetTransporter; }
+    public void setTargetTransporter(TruckOwner targetTransporter) { this.targetTransporter = targetTransporter; }
     public BigDecimal getWeightTons() { return weightTons; }
     public void setWeightTons(BigDecimal weightTons) { this.weightTons = weightTons; }
     public LocalDateTime getCreatedAt() { return createdAt; }

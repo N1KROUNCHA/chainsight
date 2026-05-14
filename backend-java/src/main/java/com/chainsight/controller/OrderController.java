@@ -51,8 +51,18 @@ public class OrderController {
     }
 
     @GetMapping("/open-requests")
-    public ResponseEntity<List<Order>> getOpenShipmentRequests() {
-        return ResponseEntity.ok(orderService.getOpenShipmentRequests());
+    public ResponseEntity<List<Order>> getOpenShipmentRequests(@RequestParam(required = false) Long transporterUserId) {
+        return ResponseEntity.ok(orderService.getOpenShipmentRequests(transporterUserId));
+    }
+
+    @GetMapping("/transporters")
+    public ResponseEntity<List<com.chainsight.model.TruckOwner>> getAllTransporters() {
+        return ResponseEntity.ok(orderService.getAllTransporters());
+    }
+
+    @PatchMapping("/{orderId}/assign-transporter/{userId}")
+    public ResponseEntity<Order> assignTransporter(@PathVariable Long orderId, @PathVariable Long userId) {
+        return ResponseEntity.ok(orderService.assignTransporter(orderId, userId));
     }
 
     @GetMapping("/truck-owner/{userId}/active-jobs")

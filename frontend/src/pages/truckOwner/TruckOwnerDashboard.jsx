@@ -41,7 +41,7 @@ export default function TruckOwnerDashboard({ user }) {
     try {
       const [trucksData, reqData, jobsData] = await Promise.all([
         api.trucks(user.userId).catch(() => []),
-        api.openRequests().catch(() => []),
+        api.openRequests(user.userId).catch(() => []),
         api.activeJobs(user.userId).catch(() => []),
       ]);
       setTrucks(trucksData || []);

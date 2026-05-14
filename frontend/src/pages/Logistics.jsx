@@ -63,14 +63,55 @@ function TruckCard({ truck }) {
   );
 }
 
-export default function Logistics() {
+export default function Logistics({ user }) {
   const [data, setData] = useState(null);
+  const [transporters, setTransporters] = useState([]);
+  const [pendingOrders, setPendingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [assigning, setAssigning] = useState({}); // orderId -> transporterUserId
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [logData, transList, allOrders] = await Promise.all([
+        api.logistics(),
+        api.transporters(),
+        user.role === 'SUPPLIER' 
+          ? api.supplierOrders(user.userId) 
+          : api.distributorInboundOrders(user.userId)
+      ]);
+      
+      setData(logData);
+      setTransporters(transList);
+      
+      // We only care about APPROVED orders that don't have a truck OR targetTransporter yet
+      const unassigned = (allOrders || []).filter(o => 
+        (o.orderStatus || '').replace(/"/g, '') === 'APPROVED' && !o.assignedTruck
+      );
+      setPendingOrders(unassigned);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    api.logistics().then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    loadData();
+  }, [user]);
+
+  const handleAssign = async (orderId) => {
+    const transporterUserId = assigning[orderId];
+    if (!transporterUserId) return;
+    try {
+      await api.assignTransporter(orderId, transporterUserId);
+      alert('Transporter assigned! They will now see this order in their priority list.');
+      loadData();
+    } catch (err) {
+      alert('Failed to assign transporter.');
+    }
+  };
 
   if (loading) return <div className="loading-ring" />;
   if (!data) return <div style={{ color: 'var(--text-muted)' }}>Failed to load logistics data.</div>;
@@ -81,40 +122,100 @@ export default function Logistics() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-title">🚚 Logistics & Truck Allocation</div>
-        <div className="page-desc">Real-time fleet monitoring, ETA tracking, and route coordination</div>
+        <div className="page-title">🚚 Logistics & Transporter Selection</div>
+        <div className="page-desc">Monitor your fleet and assign approved orders to reliable transporters</div>
       </div>
 
-      {/* Fleet KPIs */}
-      <div className="kpi-grid" style={{ marginBottom: 24 }}>
-        <div className="kpi-card blue"><div className="kpi-label">Total Fleet</div><div className="kpi-value">{data.summary.total}</div><div className="kpi-icon blue">🚛</div></div>
-        <div className="kpi-card green"><div className="kpi-label">En Route</div><div className="kpi-value">{data.summary.enRoute}</div><div className="kpi-icon green">🟢</div></div>
-        <div className="kpi-card red"><div className="kpi-label">Delayed</div><div className="kpi-value">{data.summary.delayed}</div><div className="kpi-icon red">⚠️</div></div>
-        <div className="kpi-card yellow"><div className="kpi-label">Idle</div><div className="kpi-value">{data.summary.idle}</div><div className="kpi-icon yellow">⏸️</div></div>
-      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, marginBottom: 24 }}>
+        
+        {/* Fleet KPIs & Monitoring (Existing) */}
+        <div>
+          <div className="kpi-grid" style={{ marginBottom: 24 }}>
+            <div className="kpi-card blue"><div className="kpi-label">Total Fleet</div><div className="kpi-value">{data.summary.total}</div><div className="kpi-icon blue">🚛</div></div>
+            <div className="kpi-card green"><div className="kpi-label">En Route</div><div className="kpi-value">{data.summary.enRoute}</div><div className="kpi-icon green">🟢</div></div>
+            <div className="kpi-card red"><div className="kpi-label">Delayed</div><div className="kpi-value">{data.summary.delayed}</div><div className="kpi-icon red">⚠️</div></div>
+          </div>
 
-      {/* Filter buttons */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {filters.map(f => (
-          <button key={f} className={`btn ${filter === f ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilter(f)} style={{ fontSize: 11, textTransform: 'capitalize' }}>
-            {f === 'ALL' ? 'All Trucks' : STATUS_META[f]?.label || f}
-          </button>
-        ))}
-      </div>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">🚛 Active Fleet Monitoring</div>
+            </div>
+            <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {filtered.map(t => <TruckCard key={t.id} truck={t} />)}
+            </div>
+          </div>
+        </div>
 
-      {/* Truck cards grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginBottom: 24 }}>
-        {filtered.map(t => <TruckCard key={t.id} truck={t} />)}
+        {/* Transporter Assignment (NEW) */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">🎯 Assign Transporter to Orders</div>
+            <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{pendingOrders.length} pending</span>
+          </div>
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {pendingOrders.map(order => {
+              const client = order.retailer?.shopName || order.distributor?.companyName || 'Retailer';
+              return (
+                <div key={order.orderId} style={{ padding: 14, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-card-2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Order #{order.orderId}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>To: {client}</div>
+                      <div style={{ fontSize: 11, color: 'var(--accent)' }}>📦 {order.weightTons} Tons</div>
+                    </div>
+                    {order.targetTransporter ? (
+                      <span className="badge info">Assigned to {order.targetTransporter.companyName}</span>
+                    ) : (
+                      <span className="badge warn">Unassigned</span>
+                    )}
+                  </div>
+                  
+                  {!order.targetTransporter && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      <select 
+                        className="btn btn-ghost" 
+                        style={{ flex: 1, textAlign: 'left', fontSize: 11 }}
+                        value={assigning[order.orderId] || ''}
+                        onChange={e => setAssigning({ ...assigning, [order.orderId]: e.target.value })}
+                      >
+                        <option value="">-- Choose Transporter --</option>
+                        {transporters.map(t => (
+                          <option key={t.user.userId} value={t.user.userId}>
+                            {t.companyName} ({t.city})
+                          </option>
+                        ))}
+                      </select>
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ padding: '4px 12px', fontSize: 11 }}
+                        onClick={() => handleAssign(order.orderId)}
+                        disabled={!assigning[order.orderId]}
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {pendingOrders.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 13 }}>
+                All approved orders have been assigned to transporters.
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Shipment table */}
       <div className="card">
         <div className="card-header">
-          <div className="card-title"><div className="card-icon" style={{ background: 'var(--blue-soft)' }}>📋</div>Shipment Details</div>
+          <div className="card-title">📋 Live Shipment Tracking</div>
         </div>
         <table className="data-table">
           <thead>
-            <tr><th>Truck ID</th><th>Driver</th><th>Route</th><th>Cargo</th><th>Load %</th><th>ETA</th><th>Coordinates</th><th>Status</th></tr>
+            <tr><th>Truck ID</th><th>Driver</th><th>Route</th><th>Cargo</th><th>Load %</th><th>ETA</th><th>Status</th></tr>
           </thead>
           <tbody>
             {filtered.map(t => (
@@ -134,7 +235,6 @@ export default function Logistics() {
                 <td style={{ color: t.etaMinutes > 120 ? 'var(--red)' : t.etaMinutes > 60 ? 'var(--yellow)' : 'var(--green)', fontWeight: 600 }}>
                   {t.etaMinutes !== null ? `${t.etaMinutes}m` : '—'}
                 </td>
-                <td><span className="tx-hash" style={{ fontSize: 10 }}>{t.lat.toFixed(2)}, {t.lng.toFixed(2)}</span></td>
                 <td><span className={`badge ${STATUS_META[t.status]?.badge || 'info'}`}>{STATUS_META[t.status]?.label || t.status}</span></td>
               </tr>
             ))}

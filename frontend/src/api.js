@@ -41,9 +41,14 @@ export const api = {
   qrCode:   (code) => get(`/qr/${code}`),
 
   // Transporter Module
+  transporters: () => get('/orders/transporters'),
+  assignTransporter: (orderId, userId) => patch(`/orders/${orderId}/assign-transporter/${userId}`, {}),
   trucks: (ownerId) => get(`/trucks/owner/${ownerId}`),
   addTruck: (data) => post('/trucks', data),
-  openRequests: () => get('/orders/open-requests'),
+  openRequests: (transporterUserId) => {
+    const url = transporterUserId ? `/orders/open-requests?transporterUserId=${transporterUserId}` : '/orders/open-requests';
+    return get(url);
+  },
   activeJobs: (ownerId) => get(`/orders/truck-owner/${ownerId}/active-jobs`),
   assignTruck: (orderId, truckId) => patch(`/orders/${orderId}/assign-truck/${truckId}`, {}),
 };
