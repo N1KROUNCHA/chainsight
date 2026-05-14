@@ -18,7 +18,7 @@ export default function DistributorRetailerRequests({ user }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const orderData = await api.distributorOrders(user.userId).catch(() => []);
+      const orderData = await api.distributorInboundOrders(user.userId).catch(() => []);
       setOrders(orderData || []);
     } catch (err) {
       console.error('Failed to load orders:', err);

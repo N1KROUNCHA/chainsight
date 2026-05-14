@@ -25,9 +25,13 @@ export const api = {
   
   createOrder: (data) => post('/orders', data),
   retailerOrders: (id) => get(`/orders/retailer/${id}`),
-  distributorOrders: (id) => get(`/orders/distributor/${id}`),
+  distributorInboundOrders: (id) => get(`/orders/distributor/${id}/inbound`),
+  distributorOutboundOrders: (id) => get(`/orders/distributor/${id}/outbound`),
   supplierOrders: (id) => get(`/orders/supplier/${id}`),
-  updateOrderStatus: (id, status) => patch(`/orders/${id}/status`, status),
+  updateOrderStatus: (id, status, weight) => {
+    const url = weight ? `/orders/${id}/status?weight=${weight}` : `/orders/${id}/status`;
+    return patch(url, status);
+  },
   
   bottleneck: () => get('/bottleneck'),
   logistics:  () => get('/logistics'),

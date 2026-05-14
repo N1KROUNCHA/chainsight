@@ -27,9 +27,14 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getRetailerOrders(id));
     }
 
-    @GetMapping("/distributor/{id}")
-    public ResponseEntity<List<Order>> getDistributorOrders(@PathVariable Long id) {
-        return ResponseEntity.ok(orderService.getDistributorOrders(id));
+    @GetMapping("/distributor/{id}/inbound")
+    public ResponseEntity<List<Order>> getDistributorInboundOrders(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getDistributorInboundOrders(id));
+    }
+
+    @GetMapping("/distributor/{id}/outbound")
+    public ResponseEntity<List<Order>> getDistributorOutboundOrders(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getDistributorOutboundOrders(id));
     }
 
     @GetMapping("/supplier/{id}")
@@ -38,8 +43,11 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Order> updateStatus(@PathVariable Long id, @RequestBody String status) {
-        return ResponseEntity.ok(orderService.updateStatus(id, status));
+    public ResponseEntity<Order> updateStatus(
+            @PathVariable Long id, 
+            @RequestBody String status,
+            @RequestParam(required = false) java.math.BigDecimal weight) {
+        return ResponseEntity.ok(orderService.updateStatus(id, status, weight));
     }
 
     @GetMapping("/open-requests")

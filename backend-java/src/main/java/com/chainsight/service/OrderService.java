@@ -70,19 +70,28 @@ public class OrderService {
         return orderRepository.findByRetailerUserUserId(userId);
     }
 
-    public List<Order> getDistributorOrders(Long userId) {
-        return orderRepository.findByDistributorUserUserId(userId);
+    // Inbound: Retailers ordering FROM Distributor
+    public List<Order> getDistributorInboundOrders(Long userId) {
+        return orderRepository.findByDistributorUserUserIdAndRetailerNotNull(userId);
+    }
+
+    // Outbound: Distributor ordering FROM Supplier
+    public List<Order> getDistributorOutboundOrders(Long userId) {
+        return orderRepository.findByDistributorUserUserIdAndSupplierNotNullAndRetailerIsNull(userId);
     }
 
     public List<Order> getSupplierOrders(Long userId) {
         return orderRepository.findBySupplierUserUserId(userId);
     }
 
-    public Order updateStatus(Long orderId, String status) {
+    public Order updateStatus(Long orderId, String status, BigDecimal weight) {
         // Trim quotes if sent as JSON string
         String cleanStatus = status.replace("\"", "").trim();
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.setOrderStatus(cleanStatus);
+        if (weight != null) {
+            order.setWeightTons(weight);
+        }
         return orderRepository.save(order);
     }
 

@@ -20,7 +20,7 @@ export default function SupplierRequestStatus({ user }) {
       const isRetailer = user.role === 'RETAILER';
       const data = isRetailer 
         ? await api.retailerOrders(user.userId).catch(() => [])
-        : await api.distributorOrders(user.userId).catch(() => []);
+        : await api.distributorOutboundOrders(user.userId).catch(() => []);
       
       setOrders(data || []);
     } catch (err) {
