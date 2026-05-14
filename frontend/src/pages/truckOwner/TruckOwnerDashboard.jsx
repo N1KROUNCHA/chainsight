@@ -61,13 +61,15 @@ export default function TruckOwnerDashboard({ user }) {
   const handleAcceptLoad = async (e) => {
     e.preventDefault();
     if (!selectedOrder || !selectedTruck) return;
+    console.log('🚀 Assigning Truck:', { orderId: selectedOrder.orderId, truckId: selectedTruck, orderWeight: selectedOrder.weightTons });
     try {
       await api.assignTruck(selectedOrder.orderId, selectedTruck);
       setSelectedOrder(null);
       setSelectedTruck('');
       loadData();
     } catch (err) {
-      alert('Failed to accept load. Truck might be full.');
+      const msg = err.response?.data?.message || err.message || 'Unknown error';
+      alert('Failed to accept load: ' + msg);
     }
   };
 

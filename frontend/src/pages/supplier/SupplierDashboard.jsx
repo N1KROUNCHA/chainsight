@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import BlockchainLiveFeed from '../../components/BlockchainLiveFeed';
 
 export default function SupplierDashboard({ user }) {
   const [orders, setOrders] = useState([]);
@@ -177,6 +178,7 @@ export default function SupplierDashboard({ user }) {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <BlockchainLiveFeed />
               <div className="card">
                 <div className="card-header">
                   <div className="card-title">Regional Demand Analytics</div>

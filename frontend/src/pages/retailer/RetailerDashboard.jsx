@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import BlockchainLiveFeed from '../../components/BlockchainLiveFeed';
 
 const STATUS_BADGE = {
   PENDING:   { color: 'warn',    label: '⏳ Pending'   },
@@ -45,7 +46,6 @@ export default function RetailerDashboard({ user }) {
 
   if (loading) return <div className="loading-ring" />;
 
-  // Split orders by status
   const requestOrders  = orders.filter(o => ['PENDING', 'REJECTED'].includes((o.orderStatus || '').replace(/"/g, '')));
   const activeShipments = orders.filter(o => ['APPROVED', 'DISPATCHED', 'DELIVERED'].includes((o.orderStatus || '').replace(/"/g, '')));
 
@@ -70,7 +70,6 @@ export default function RetailerDashboard({ user }) {
         <div className="page-desc">Manage your shop inventory and orders for {user.fullName}</div>
       </div>
 
-      {/* KPIs */}
       <div className="kpi-grid">
         <div className="kpi-card blue">
           <div className="kpi-label">Current Stock</div>
@@ -94,80 +93,80 @@ export default function RetailerDashboard({ user }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-        {/* ── Pending / Rejected Requests ── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">📬 My Order Requests</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Awaiting approval from supplier / distributor</span>
+      <div className="grid-2" style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">📬 My Order Requests</div>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Awaiting approval from supplier / distributor</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr><th>ID</th><th>Sent To</th><th>Items</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {requestOrders.length > 0 ? requestOrders.map(o => <OrderRow key={o.orderId} o={o} />) : (
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No pending or rejected requests.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Sent To</th><th>Items</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {requestOrders.length > 0 ? requestOrders.map(o => <OrderRow key={o.orderId} o={o} />) : (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No pending or rejected requests.</td></tr>
-                )}
-              </tbody>
-            </table>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">🚛 Active Shipments</div>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Approved, in transit, or delivered orders</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr><th>ID</th><th>From</th><th>Items</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {activeShipments.length > 0 ? activeShipments.map(o => <OrderRow key={o.orderId} o={o} />) : (
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No active shipments yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        {/* ── Active Shipments ── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">🚛 Active Shipments</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Approved, in transit, or delivered orders</span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>From</th><th>Items</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {activeShipments.length > 0 ? activeShipments.map(o => <OrderRow key={o.orderId} o={o} />) : (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No active shipments yet.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Stock Forecast ── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">📊 Stock Forecast</div>
-          </div>
-          <div style={{ padding: 16 }}>
-            {inventory.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {inventory.slice(0, 5).map(item => (
-                  <div key={item.inventoryId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{item.product.productName}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Stock: {item.quantity} {item.product.unit}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <BlockchainLiveFeed />
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">📊 Stock Forecast</div>
+            </div>
+            <div style={{ padding: 16 }}>
+              {inventory.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {inventory.slice(0, 5).map(item => (
+                    <div key={item.inventoryId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.product.productName}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Stock: {item.quantity} {item.product.unit}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        {item.quantity <= item.reorderPoint ? (
+                          <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>⚠️ Reorder Now</span>
+                        ) : (
+                          <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>✅ Sufficient</span>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {item.quantity <= item.reorderPoint ? (
-                        <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>⚠️ Reorder Now</span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>✅ Sufficient</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
-                No inventory configured yet.
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+                  No inventory configured yet.
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
       </div>
     </div>
   );

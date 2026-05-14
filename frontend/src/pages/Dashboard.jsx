@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import BlockchainLiveFeed from '../components/BlockchainLiveFeed';
 
 function useData(fetcher) {
   const [data, setData] = useState(null);
@@ -75,108 +76,169 @@ function ModuleCards() {
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ user }) {
   const { data: kpis, loading: kLoading } = useData(api.kpis);
   const { data: alertsData, loading: aLoading } = useData(api.alerts);
-  const { data: bData, loading: bLoading } = useData(api.bottleneck);
+  
+  // Role-specific configuration
+  const roleConfig = {
+    SUPPLIER: {
+      title: "🏭 Manufacturing & Supply Hub",
+      desc: "Manage production throughput and distributor fulfillment.",
+      kpis: [
+        { label: "Active Production", value: "85%", icon: "⚙️", color: "blue" },
+        { label: "Pending Distributor Orders", value: "4", icon: "📬", color: "purple" },
+        { label: "Material Stock", value: "92%", icon: "📦", color: "green" }
+      ],
+      actions: [
+        { label: "Approve Distributor Orders", to: "/orders/incoming", icon: "✅" },
+        { label: "Update Product Inventory", to: "/inventory", icon: "📦" },
+        { label: "Check Demand Forecast", to: "/forecast", icon: "📈" }
+      ]
+    },
+    DISTRIBUTOR: {
+      title: "🏢 Regional Distribution Center",
+      desc: "Optimize inventory flow and logistics coordination.",
+      kpis: [
+        { label: "Warehouse Capacity", value: "72%", icon: "🏭", color: "blue" },
+        { label: "Retailer Requests", value: "12", icon: "📥", color: "purple" },
+        { label: "Outbound Shipments", value: "8", icon: "🚚", color: "green" }
+      ],
+      actions: [
+        { label: "Approve Retailer Requests", to: "/orders/retailer-requests", icon: "🤝" },
+        { label: "Reorder from Supplier", to: "/orders/place", icon: "🛒" },
+        { label: "Monitor Fleet", to: "/logistics", icon: "🚛" }
+      ]
+    },
+    RETAILER: {
+      title: "🏪 Retail Operational Hub",
+      desc: "Track sales velocity and inventory replenishment.",
+      kpis: [
+        { label: "Store Inventory", value: "94%", icon: "🏪", color: "blue" },
+        { label: "Incoming Deliveries", value: "2", icon: "🚛", color: "purple" },
+        { label: "Sales Velocity", value: "+14%", icon: "📈", color: "green" }
+      ],
+      actions: [
+        { label: "Place Replenishment Order", to: "/orders/place", icon: "🛒" },
+        { label: "Confirm Received Shipments", to: "/shipments/incoming", icon: "📦" },
+        { label: "View Sales Analytics", to: "/forecast", icon: "📊" }
+      ]
+    },
+    TRUCK_OWNER: {
+      title: "🚛 Logistics Command Center",
+      desc: "Fleet dispatching and delivery fulfillment.",
+      kpis: [
+        { label: "Total Fleet", value: "6", icon: "🚚", color: "blue" },
+        { label: "Available Trucks", value: "2", icon: "✅", color: "green" },
+        { label: "Active Jobs", value: "4", icon: "📍", color: "purple" }
+      ],
+      actions: [
+        { label: "Accept New Shipment Jobs", to: "/trucks/dashboard", icon: "📦" },
+        { label: "Manage My Fleet", to: "/trucks/dashboard", icon: "🚛" },
+        { label: "View Route Analytics", to: "/bottleneck", icon: "⚠️" }
+      ]
+    },
+    ADMIN: {
+      title: "⬡ Global Admin Center",
+      desc: "System-wide intelligence and blockchain governance.",
+      kpis: [
+        { label: "Platform Throughput", value: "88%", icon: "🛒", color: "blue" },
+        { label: "Network Health", value: "100%", icon: "🌐", color: "green" },
+        { label: "Blockchain Events", value: "1.2k", icon: "🔗", color: "purple" }
+      ],
+      actions: [
+        { label: "Blockchain Audit Trail", to: "/blockchain", icon: "🔗" },
+        { label: "Bottleneck Analysis", to: "/bottleneck", icon: "⚠️" },
+        { label: "Demand Forecasting", to: "/forecast", icon: "📈" }
+      ]
+    }
+  };
+
+  const config = roleConfig[user.role] || roleConfig.ADMIN;
 
   return (
     <div>
       <div className="page-header">
-        <div className="page-title">⬡ Global Admin Center</div>
-        <div className="page-desc">System-wide intelligence, predictive analytics, and blockchain governance.</div>
+        <div className="page-title">{config.title}</div>
+        <div className="page-desc">{config.desc}</div>
       </div>
 
-      {kLoading ? <div className="loading-ring" /> : kpis && (
-        <div className="kpi-grid">
-          <KpiCard label="Total Platform Orders" value={kpis.ordersToday * 14} change={12} changeDir="up" icon="🛒" color="blue" />
-          <KpiCard label="System-wide Delays" value="1.2%" change={0.4} changeDir="down" icon="⚠️" color="red" />
-          <KpiCard label="Inventory Health" value="94%" change={2} changeDir="up" icon="📦" color="green" />
-          <KpiCard label="Forecast Accuracy" value={kpis.forecastAccuracy} suffix="%" icon="🎯" color="purple" />
-        </div>
-      )}
+      <div className="kpi-grid">
+        {config.kpis.map((k, i) => (
+          <KpiCard key={i} label={k.label} value={k.value} icon={k.icon} color={k.color} />
+        ))}
+      </div>
 
-      <div className="grid-2" style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div className="grid-2" style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          
+          {/* Next Actions (Workflow Driven) */}
           <div className="card">
             <div className="card-header">
               <div className="card-title">
-                <div className="card-icon" style={{ background: 'var(--blue-soft)' }}>🧭</div>
-                System Modules
+                <div className="card-icon" style={{ background: 'var(--blue-soft)' }}>⚡</div>
+                Required Actions
               </div>
             </div>
-            <div style={{ padding: 16 }}>
-                <ModuleCards />
+            <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {config.actions.map((a, i) => (
+                <Link key={i} to={a.to} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    background: 'var(--bg-card-2)', border: '1px solid var(--border)', borderRadius: 10,
+                    padding: '16px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 12
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                  >
+                    <div style={{ fontSize: 24 }}>{a.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{a.label}</div>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title">
-                <div className="card-icon" style={{ background: 'var(--red-soft)' }}>🔴</div>
-                Top Global Bottlenecks
-              </div>
-            </div>
-            <div style={{ padding: 16 }}>
-              {bLoading ? <div className="loading-ring" /> : bData?.length ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {bData.slice(0, 3).map(b => (
-                    <div key={b.nodeId} style={{ display: 'flex', gap: 12, alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
-                      <div style={{ fontSize: 24 }}>{b.severity === 'CRITICAL' ? '🔴' : '🟡'}</div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{b.nodeName}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.issueType} • Est. Delay: {b.estimatedDelayHrs}h</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>No active bottlenecks.</div>}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div className="card">
             <div className="card-header">
               <div className="card-title">
                 <div className="card-icon" style={{ background: 'var(--accent-3-soft)' }}>🔗</div>
-                Blockchain Audit Stream
+                Real-time Audit Stream
               </div>
             </div>
             <div style={{ padding: 16 }}>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                     <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
-                         <span style={{ color: 'var(--accent)' }}>[0x8a92...b4f1]</span>
-                         <span>Order #42 Approved by <b>North Regional Hub</b></span>
-                     </div>
-                     <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
-                         <span style={{ color: 'var(--accent)' }}>[0x1f34...c9a0]</span>
-                         <span>Shipment JOB-901 Accepted by <b>Swift Transporters</b></span>
-                     </div>
-                     <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
-                         <span style={{ color: 'var(--accent)' }}>[0x9b4e...d221]</span>
-                         <span>Inventory Restock Confirmed by <b>Supplier A</b></span>
-                     </div>
-                     <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
-                         <span style={{ color: 'var(--accent)' }}>[0x4c21...a8f8]</span>
-                         <span>Order #39 Delivered to <b>City Supermarket #1</b></span>
-                     </div>
-                 </div>
-                 <div style={{ marginTop: 16, textAlign: 'center' }}>
-                     <Link to="/blockchain" className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }}>View Full Ledger</Link>
-                 </div>
+                 <BlockchainStream />
             </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">
+                <div className="card-icon" style={{ background: 'var(--yellow-soft)' }}>🔔</div>
+                Operational Alerts
+              </div>
+            </div>
+            {aLoading ? <div className="loading-ring" /> : <RecentAlerts alerts={alertsData?.alerts} />}
           </div>
 
           <div className="card">
             <div className="card-header">
               <div className="card-title">
-                <div className="card-icon" style={{ background: 'var(--yellow-soft)' }}>🔔</div>
-                Recent Alerts
+                <div className="card-icon" style={{ background: 'var(--purple-soft)' }}>📊</div>
+                Live Metrics
               </div>
-              <Link to="/notifications" className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }}>View All</Link>
             </div>
-            {aLoading ? <div className="loading-ring" /> : <RecentAlerts alerts={alertsData?.alerts} />}
+            <div style={{ padding: 16 }}>
+              <div style={{ height: 120, display: 'flex', alignItems: 'flex-end', gap: 8, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                {[40, 70, 45, 90, 65, 80, 95].map((h, i) => (
+                  <div key={i} style={{ flex: 1, height: `${h}%`, background: 'var(--primary)', borderRadius: '4px 4px 0 0', opacity: 0.7 + (i * 0.05) }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10, color: 'var(--text-muted)' }}>
+                <span>MON</span><span>WED</span><span>FRI</span><span>SUN</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import BlockchainLiveFeed from '../../components/BlockchainLiveFeed';
 
 const STATUS_BADGE = {
   PENDING:   { color: 'warn',    label: '⏳ Pending'   },
@@ -89,37 +90,43 @@ export default function DistributorDashboard({ user }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {/* ── Stock Forecast ── */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">📊 Inventory & Stock Forecasting</div>
-          </div>
-          <div style={{ padding: 16 }}>
-            {inventory.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {inventory.map(item => (
-                  <div key={item.inventoryId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{item.product.productName}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Qty: {item.quantity} • ROP: {item.reorderPoint}</div>
+      <div className="grid-2" style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* ── Stock Forecast ── */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">📊 Inventory & Stock Forecasting</div>
+            </div>
+            <div style={{ padding: 16 }}>
+              {inventory.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {inventory.map(item => (
+                    <div key={item.inventoryId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.product.productName}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Qty: {item.quantity} • ROP: {item.reorderPoint}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        {item.quantity <= item.reorderPoint ? (
+                          <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>⚠️ Below Reorder Point</span>
+                        ) : (
+                          <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>✅ Healthy</span>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {item.quantity <= item.reorderPoint ? (
-                        <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>⚠️ Below Reorder Point</span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>✅ Healthy</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
-                No inventory configured yet.
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+                  No inventory configured yet.
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <BlockchainLiveFeed />
         </div>
       </div>
     </div>
