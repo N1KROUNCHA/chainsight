@@ -169,6 +169,112 @@ public class DataSeeder implements CommandLineRunner {
         di2.setSafetyStock(100);
         inventoryRepository.save(di2);
 
-        System.out.println("✅ Database Seeded with Multi-Role Test Users, Products, Trucks, and Distributor Inventory");
+        // --- Additional Suppliers ---
+        createSupplier("Agro-Pure Industries", "agro_supplier@msme.com", "Indore", "RAW_MATERIAL", "Organic Wheat Bulk", "KG");
+        createSupplier("Steel Craft Corp", "steel_supplier@msme.com", "Jamshedpur", "RAW_MATERIAL", "Industrial Steel Rods", "TONS");
+        createSupplier("Bio-Tech Pharma", "pharma_supplier@msme.com", "Hyderabad", "MEDICAL", "Standard Sanitizer (Bulk)", "LITERS");
+
+        // --- Additional Distributors ---
+        createDistributor("Central India Logistics", "central_dist@msme.com", "Nagpur", 8000);
+        createDistributor("South Connect Supply", "south_dist@msme.com", "Chennai", 6500);
+        createDistributor("East Gate Warehousing", "east_dist@msme.com", "Kolkata", 4500);
+
+        // --- Additional Retailers ---
+        createRetailer("Green Groceries", "green_retailer@msme.com", "Bangalore");
+        createRetailer("Modern Electronics", "modern_retailer@msme.com", "Pune");
+        createRetailer("Health First Pharmacy", "health_retailer@msme.com", "Chandigarh");
+
+        // --- Additional Transporters ---
+        createTransporter("Viking Haulage", "viking_trucks@msme.com", "Ahmedabad", "GJ-02-VH-8888", "18.00");
+        createTransporter("Oceanic Freight", "oceanic_trucks@msme.com", "Kochi", "KL-07-OF-9999", "22.00");
+        createTransporter("Mountain Express", "mountain_trucks@msme.com", "Srinagar", "JK-01-ME-1111", "12.00");
+
+        System.out.println("✅ Database Seeded with Extended Multi-Role Test Users, Products, Trucks, and Inventory");
+    }
+
+    private void createSupplier(String company, String email, String city, String cat, String pName, String unit) {
+        User u = new User();
+        u.setFullName(company + " Manager");
+        u.setEmail(email);
+        u.setPassword("password123");
+        u.setRole("SUPPLIER");
+        userRepository.save(u);
+
+        Supplier s = new Supplier();
+        s.setUser(u);
+        s.setCompanyName(company);
+        s.setCity(city);
+        supplierRepository.save(s);
+
+        Product p = new Product();
+        p.setProductName(pName);
+        p.setCategory(cat);
+        p.setUnit(unit);
+        p.setSupplier(s);
+        productRepository.save(p);
+
+        Inventory inv = new Inventory();
+        inv.setOwnerType("SUPPLIER");
+        inv.setOwnerId(u.getUserId());
+        inv.setProduct(p);
+        inv.setQuantity(2000);
+        inv.setReorderPoint(500);
+        inv.setSafetyStock(100);
+        inventoryRepository.save(inv);
+    }
+
+    private void createDistributor(String company, String email, String city, int cap) {
+        User u = new User();
+        u.setFullName(company + " Hub");
+        u.setEmail(email);
+        u.setPassword("password123");
+        u.setRole("DISTRIBUTOR");
+        userRepository.save(u);
+
+        Distributor d = new Distributor();
+        d.setUser(u);
+        d.setCompanyName(company);
+        d.setCity(city);
+        d.setWarehouseCapacity(cap);
+        distributorRepository.save(d);
+    }
+
+    private void createRetailer(String shop, String email, String city) {
+        User u = new User();
+        u.setFullName(shop + " Owner");
+        u.setEmail(email);
+        u.setPassword("password123");
+        u.setRole("RETAILER");
+        userRepository.save(u);
+
+        Retailer r = new Retailer();
+        r.setUser(u);
+        r.setShopName(shop);
+        r.setCity(city);
+        retailerRepository.save(r);
+    }
+
+    private void createTransporter(String company, String email, String city, String truckNum, String cap) {
+        User u = new User();
+        u.setFullName(company + " Fleet");
+        u.setEmail(email);
+        u.setPassword("password123");
+        u.setRole("TRUCK_OWNER");
+        userRepository.save(u);
+
+        TruckOwner o = new TruckOwner();
+        o.setUser(u);
+        o.setCompanyName(company);
+        truckOwnerRepository.save(o);
+
+        Truck t = new Truck();
+        t.setOwner(o);
+        t.setTruckNumber(truckNum);
+        t.setCapacityTons(new BigDecimal(cap));
+        t.setAvailableCapacityTons(new BigDecimal(cap));
+        t.setAvailabilityStatus("AVAILABLE");
+        t.setCurrentCity(city);
+        t.setRoute(city + " → Regional Hubs");
+        truckRepository.save(t);
     }
 }
