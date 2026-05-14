@@ -99,7 +99,8 @@ export default function PlaceOrder({ user }) {
       weightTons: null, // Will be specified by transporter when assigning truck
       items: cart.map(item => ({
         product: { productId: item.productId },
-        quantity: item.quantity
+        quantity: item.quantity,
+        price: item.unitPrice || 0
       }))
     };
 
