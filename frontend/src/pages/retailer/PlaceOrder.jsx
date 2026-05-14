@@ -13,11 +13,17 @@ export default function PlaceOrder({ user }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [distList, suppList, orderList] = await Promise.all([
-          api.distributors(),
-          api.suppliers(),
-          api.retailerOrders(user.userId)
-        ]);
+        let distList = [];
+        let suppList = [];
+        let orderList = [];
+
+        if (user?.role === 'RETAILER') {
+          distList = await api.distributors();
+          orderList = await api.retailerOrders(user.userId) || [];
+        } else if (user?.role === 'DISTRIBUTOR') {
+          suppList = await api.suppliers();
+          orderList = await api.distributorOrders(user.userId) || [];
+        }
         
         // Combine into unified vendor list
         const allVendors = [
@@ -26,7 +32,7 @@ export default function PlaceOrder({ user }) {
         ];
         
         setVendors(allVendors);
-        setOrders(orderList || []);
+        setOrders(orderList);
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {
@@ -81,10 +87,15 @@ export default function PlaceOrder({ user }) {
   const handlePlaceOrder = async () => {
     if (!selectedVendor || cart.length === 0) return;
     
+    // Determine buyer based on role
+    const isRetailer = user.role === 'RETAILER';
+    const isDistributor = user.role === 'DISTRIBUTOR';
+
     const orderData = {
-      retailer: { user: { userId: user.userId } },
-      distributor: selectedVendor.type === 'DISTRIBUTOR' ? { user: { userId: selectedVendor.user.userId } } : null,
-      supplier:    selectedVendor.type === 'SUPPLIER'    ? { user: { userId: selectedVendor.user.userId } } : null,
+      retailer: isRetailer ? { user: { userId: user.userId } } : null,
+      distributor: isDistributor ? { user: { userId: user.userId } } : 
+                   (selectedVendor.type === 'DISTRIBUTOR' ? { user: { userId: selectedVendor.user.userId } } : null),
+      supplier: selectedVendor.type === 'SUPPLIER' ? { user: { userId: selectedVendor.user.userId } } : null,
       weightTons: null, // Will be specified by transporter when assigning truck
       items: cart.map(item => ({
         product: { productId: item.productId },
@@ -101,7 +112,7 @@ export default function PlaceOrder({ user }) {
         alert(`✅ Order #${result.orderId} placed successfully! Awaiting approval from ${selectedVendor.name}.`);
         setCart([]);
         setSelectedVendor(null);
-        const orderList = await api.retailerOrders(user.userId);
+        const orderList = isRetailer ? await api.retailerOrders(user.userId) : await api.distributorOrders(user.userId);
         setOrders(orderList || []);
       } else {
         alert('Order may have failed — check the browser console for details.');

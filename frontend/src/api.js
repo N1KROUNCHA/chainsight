@@ -50,7 +50,9 @@ async function post(path, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.message || `POST ${path} failed: ${res.status}`);
+  return data;
 }
 
 async function put(path, body) {
@@ -59,7 +61,9 @@ async function put(path, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.message || `PUT ${path} failed: ${res.status}`);
+  return data;
 }
 
 async function patch(path, body) {
@@ -68,7 +72,9 @@ async function patch(path, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.message || `PATCH ${path} failed: ${res.status}`);
+  return data;
 }
 
 async function del(path) {
