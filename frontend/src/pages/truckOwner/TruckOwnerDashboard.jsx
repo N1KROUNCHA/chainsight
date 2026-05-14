@@ -71,6 +71,15 @@ export default function TruckOwnerDashboard({ user }) {
     }
   };
 
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      await api.updateOrderStatus(orderId, newStatus);
+      loadData();
+    } catch (err) {
+      alert('Failed to update order status.');
+    }
+  };
+
   const handleAddTruck = async (e) => {
     e.preventDefault();
     if (!newTruck.selectedSize) { alert('Please select a truck size.'); return; }
@@ -296,18 +305,41 @@ export default function TruckOwnerDashboard({ user }) {
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead>
-                  <tr><th>Order #</th><th>Truck</th><th>Load</th><th>Route</th><th>Status</th></tr>
+                  <tr><th>Order #</th><th>Truck</th><th>Load</th><th>Route</th><th>Status</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                   {activeJobs.map(job => {
                     const status = (job.orderStatus || '').replace(/"/g, '');
+                    const badgeClass = status === 'DISPATCHED' ? 'info' : status === 'IN_TRANSIT' ? 'primary' : 'success';
                     return (
                       <tr key={job.orderId}>
                         <td><span className="tx-hash">#{job.orderId}</span></td>
                         <td style={{ fontWeight: 600 }}>{job.assignedTruck?.truckNumber || 'N/A'}</td>
                         <td>{job.weightTons ? job.weightTons + ' T' : '—'}</td>
                         <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{job.assignedTruck?.route || '—'}</td>
-                        <td><span className={`badge ${status === 'DISPATCHED' ? 'info' : 'warn'}`}>{status}</span></td>
+                        <td><span className={`badge ${badgeClass}`}>{status}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {status === 'DISPATCHED' && (
+                              <button 
+                                className="btn btn-ghost" 
+                                style={{ padding: '4px 8px', fontSize: 10, color: 'var(--accent)' }}
+                                onClick={() => handleUpdateStatus(job.orderId, 'IN_TRANSIT')}
+                              >
+                                🚚 Start
+                              </button>
+                            )}
+                            {(status === 'DISPATCHED' || status === 'IN_TRANSIT') && (
+                              <button 
+                                className="btn btn-ghost" 
+                                style={{ padding: '4px 8px', fontSize: 10, color: 'var(--green)' }}
+                                onClick={() => handleUpdateStatus(job.orderId, 'DELIVERED')}
+                              >
+                                ✅ Delivered
+                              </button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

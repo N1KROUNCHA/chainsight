@@ -14,12 +14,18 @@ export default function DistributorRetailerRequests({ user }) {
   const [loading, setLoading] = useState(true);
 
   const [selectedWeight, setSelectedWeight] = useState({});
+  const [selectedTransporter, setSelectedTransporter] = useState({});
+  const [transporters, setTransporters] = useState([]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const orderData = await api.distributorInboundOrders(user.userId).catch(() => []);
-      setOrders(orderData || []);
+      const [data, transList] = await Promise.all([
+        api.distributorInboundOrders(user.userId).catch(() => []),
+        api.transporters().catch(() => [])
+      ]);
+      setOrders(data || []);
+      setTransporters(transList || []);
     } catch (err) {
       console.error('Failed to load orders:', err);
     } finally {
@@ -32,14 +38,27 @@ export default function DistributorRetailerRequests({ user }) {
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       const weight = selectedWeight[orderId];
-      if (newStatus === 'APPROVED' && (!weight || parseFloat(weight) <= 0)) {
-        alert('Please specify the order weight in Tons before approving.');
-        return;
+      const transporterId = selectedTransporter[orderId];
+
+      if (newStatus === 'APPROVED') {
+        if (!weight || parseFloat(weight) <= 0) {
+          alert('Please specify the order weight in Tons before approving.');
+          return;
+        }
+        if (!transporterId) {
+          alert('Please select a transporter to handle this delivery.');
+          return;
+        }
       }
+
       await api.updateOrderStatus(orderId, newStatus, weight);
+      if (newStatus === 'APPROVED' && transporterId) {
+        await api.assignTransporter(orderId, transporterId);
+      }
+      
       loadData();
     } catch (err) {
-      alert('Failed to update order');
+      alert('Failed to update order status');
     }
   };
 
@@ -80,40 +99,50 @@ export default function DistributorRetailerRequests({ user }) {
                       <td>{order.items?.length || 0} item(s)</td>
                       <td>
                         {status === 'PENDING' ? (
-                          <input 
-                            type="number" 
-                            step="0.1" 
-                            placeholder="0.0"
-                            style={{ width: 60, padding: '4px 8px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-card-2)' }}
-                            value={selectedWeight[order.orderId] || ''}
-                            onChange={e => setSelectedWeight({ ...selectedWeight, [order.orderId]: e.target.value })}
-                          />
-                        ) : (
-                          <span>{order.weightTons || '—'}</span>
-                        )}
-                      </td>
-                      <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
-                      <td>
-                        {status === 'PENDING' && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button
-                              className="btn btn-primary"
-                              style={{ padding: '4px 10px', fontSize: 11 }}
-                              onClick={() => handleStatusChange(order.orderId, 'APPROVED')}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              className="btn btn-ghost"
-                              style={{ padding: '4px 10px', fontSize: 11, color: 'var(--red)' }}
-                              onClick={() => handleStatusChange(order.orderId, 'REJECTED')}
-                            >
-                              Reject
-                            </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <input 
+                                type="number" 
+                                step="0.01" 
+                                placeholder="Weight (Tons)" 
+                                className="btn btn-ghost" 
+                                style={{ width: 120, fontSize: 11, textAlign: 'left' }}
+                                value={selectedWeight[order.orderId] || ''}
+                                onChange={(e) => setSelectedWeight({...selectedWeight, [order.orderId]: e.target.value})}
+                              />
+                              <select 
+                                className="btn btn-ghost" 
+                                style={{ flex: 1, fontSize: 11, textAlign: 'left' }}
+                                value={selectedTransporter[order.orderId] || ''}
+                                onChange={(e) => setSelectedTransporter({...selectedTransporter, [order.orderId]: e.target.value})}
+                              >
+                                <option value="">-- Choose Transporter --</option>
+                                {transporters.map(t => (
+                                  <option key={t.user.userId} value={t.user.userId}>
+                                    {t.companyName} ({t.city})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                className="btn btn-primary"
+                                style={{ padding: '6px 16px', fontSize: 11 }}
+                                onClick={() => handleStatusChange(order.orderId, 'APPROVED')}
+                              >
+                                Approve & Dispatch
+                              </button>
+                              <button
+                                className="btn btn-ghost"
+                                style={{ padding: '6px 16px', fontSize: 11, color: 'var(--red)' }}
+                                onClick={() => handleStatusChange(order.orderId, 'REJECTED')}
+                              >
+                                Reject
+                              </button>
+                            </div>
                           </div>
-                        )}
-                        {status === 'REJECTED' && (
-                          <span style={{ fontSize: 11, color: 'var(--red)' }}>Request Rejected</span>
+                        ) : (
+                          <span className={`badge ${badge.color}`}>{badge.label}</span>
                         )}
                       </td>
                     </tr>

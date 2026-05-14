@@ -89,9 +89,25 @@ public class OrderService {
     }
 
     public Order updateStatus(Long orderId, String status, BigDecimal weight) {
-        // Trim quotes if sent as JSON string
         String cleanStatus = status.replace("\"", "").trim();
         Order order = orderRepository.findById(orderId).orElseThrow();
+        
+        // If transitioning TO Delivered, free up truck capacity
+        if ("DELIVERED".equals(cleanStatus) && !"DELIVERED".equals(order.getOrderStatus()) && order.getAssignedTruck() != null) {
+            Truck truck = order.getAssignedTruck();
+            BigDecimal weightToFree = order.getWeightTons() != null ? order.getWeightTons() : BigDecimal.ZERO;
+            truck.setAvailableCapacityTons(truck.getAvailableCapacityTons().add(weightToFree));
+            
+            // If truck is now below its original capacity, it's either available or partial
+            if (truck.getAvailableCapacityTons().compareTo(truck.getCapacityTons()) >= 0) {
+                truck.setAvailableCapacityTons(truck.getCapacityTons());
+                truck.setAvailabilityStatus("AVAILABLE");
+            } else {
+                truck.setAvailabilityStatus("PARTIAL_LOAD");
+            }
+            truckRepository.save(truck);
+        }
+
         order.setOrderStatus(cleanStatus);
         if (weight != null) {
             order.setWeightTons(weight);
