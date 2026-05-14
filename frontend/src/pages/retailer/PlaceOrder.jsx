@@ -84,23 +84,31 @@ export default function PlaceOrder({ user }) {
     const orderData = {
       retailer: { user: { userId: user.userId } },
       distributor: selectedVendor.type === 'DISTRIBUTOR' ? { user: { userId: selectedVendor.user.userId } } : null,
-      supplier: selectedVendor.type === 'SUPPLIER' ? { user: { userId: selectedVendor.user.userId } } : null,
+      supplier:    selectedVendor.type === 'SUPPLIER'    ? { user: { userId: selectedVendor.user.userId } } : null,
+      weightTons: null, // Will be specified by transporter when assigning truck
       items: cart.map(item => ({
         product: { productId: item.productId },
         quantity: item.quantity
       }))
     };
 
+    console.log('Placing order payload:', JSON.stringify(orderData, null, 2));
+
     try {
-      await api.createOrder(orderData);
-      alert('Order Placed Successfully!');
-      setCart([]);
-      setSelectedVendor(null);
-      const orderList = await api.retailerOrders(user.userId);
-      setOrders(orderList || []);
+      const result = await api.createOrder(orderData);
+      console.log('Order response:', result);
+      if (result?.orderId) {
+        alert(`✅ Order #${result.orderId} placed successfully! Awaiting approval from ${selectedVendor.name}.`);
+        setCart([]);
+        setSelectedVendor(null);
+        const orderList = await api.retailerOrders(user.userId);
+        setOrders(orderList || []);
+      } else {
+        alert('Order may have failed — check the browser console for details.');
+      }
     } catch (err) {
-      console.error(err);
-      alert('Failed to place order');
+      console.error('Order error:', err);
+      alert(`Failed to place order: ${err.message}`);
     }
   };
 
@@ -134,17 +142,35 @@ export default function PlaceOrder({ user }) {
               <div className="card-title">1. Choose Your Source</div>
             </div>
             <div style={{ padding: 16 }}>
+              {vendors.length === 0 && (
+                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+                  No suppliers or distributors found in the system.
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
                 {vendors.map(v => (
                   <div 
                     key={`${v.type}-${v.user.userId}`}
                     onClick={() => selectVendor(v)}
-                    className={`card-interactive ${selectedVendor?.user.userId === v.user.userId ? 'selected' : ''}`}
-                    style={{ minWidth: 180, padding: 12, cursor: 'pointer', border: selectedVendor?.user.userId === v.user.userId ? '2px solid var(--primary)' : '1px solid var(--border)' }}
+                    style={{ 
+                      minWidth: 180, padding: 14, cursor: 'pointer', borderRadius: 10,
+                      border: selectedVendor?.user.userId === v.user.userId ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: selectedVendor?.user.userId === v.user.userId ? 'var(--bg-hover)' : 'var(--bg-card-2)',
+                      transition: 'all 0.2s',
+                      flexShrink: 0
+                    }}
                   >
-                    <div style={{ fontSize: 10, color: v.type === 'SUPPLIER' ? 'var(--accent-2)' : 'var(--accent-3)', fontWeight: 700 }}>{v.type}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{v.name}</div>
+                    <div style={{ 
+                      fontSize: 10, fontWeight: 700, marginBottom: 6,
+                      color: v.type === 'SUPPLIER' ? 'var(--accent-2)' : 'var(--accent-3)',
+                    }}>
+                      {v.type === 'SUPPLIER' ? '🏭 SUPPLIER' : '🏗️ DISTRIBUTOR'}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{v.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>📍 {v.city}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+                      Approves: {v.type === 'SUPPLIER' ? 'Supplier' : 'Distributor'}
+                    </div>
                   </div>
                 ))}
               </div>
