@@ -4,7 +4,7 @@ import { api } from '../api';
 
 const navItems = [
   { to: '/',             icon: '⬡',  label: 'Dashboard',        section: 'OVERVIEW', roles: ['ADMIN', 'SUPPLIER', 'DISTRIBUTOR', 'RETAILER', 'TRUCK_OWNER'] },
-  { to: '/place-order',  icon: '🛒', label: 'Place Order',      section: 'OVERVIEW', roles: ['RETAILER'] },
+  { to: '/place-order',  icon: '🛒', label: 'Place Order',      section: 'OVERVIEW', roles: ['RETAILER', 'DISTRIBUTOR'] },
   { to: '/forecast',     icon: '📈', label: 'Demand Forecasting', section: 'ANALYTICS', roles: ['ADMIN', 'DISTRIBUTOR'] },
   { to: '/inventory',    icon: '📦', label: 'Inventory',          section: 'ANALYTICS', roles: ['ADMIN', 'SUPPLIER', 'DISTRIBUTOR', 'RETAILER'] },
   { to: '/bottleneck',   icon: '⚠️', label: 'Bottleneck Detection',section: 'ANALYTICS', roles: ['ADMIN', 'DISTRIBUTOR'] },
