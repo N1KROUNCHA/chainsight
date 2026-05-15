@@ -26,7 +26,7 @@ import java.util.List;
 public class BlockchainService {
 
     private final BlockchainEventRepository repository;
-    private final String contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+    private final String contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
     private final String privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     
     private Web3j web3j;
@@ -39,44 +39,53 @@ public class BlockchainService {
             this.web3j = Web3j.build(new HttpService("http://localhost:8545"));
             this.credentials = Credentials.create(privateKey);
             this.transactionManager = new RawTransactionManager(web3j, credentials, 1337);
+            System.out.println("✅ Connected to Hardhat Node (ChainID 1337)");
         } catch (Exception e) {
-            System.err.println("Failed to connect to Hardhat node: " + e.getMessage());
+            System.err.println("❌ Failed to connect to Hardhat node: " + e.getMessage());
         }
     }
 
     public void logEvent(String eventType, String entityRole, Long entityId, Long orderId, String details) {
-        String txHash = "0xPENDING_" + System.currentTimeMillis();
-        System.out.println("DEBUG: Logging event " + eventType + " for order " + orderId);
+        String txHash = "0xPENDING";
+        System.out.println("🚛 [BLOCKCHAIN] Processing Event: " + eventType + " for Order #" + orderId);
 
         try {
             if (web3j != null && transactionManager != null) {
-                System.out.println("DEBUG: Attempting on-chain transaction for " + eventType);
-                txHash = submitToBlockchain(eventType, details);
-                System.out.println("DEBUG: On-chain success. Hash: " + txHash);
+                // Map Java Event to Solidity Enum
+                int solidityEventType = 1; // Default to Delivery
+                if ("DISPATCHED".equals(eventType)) solidityEventType = 0;
+                else if ("DELIVERED".equals(eventType)) solidityEventType = 1;
+                else if ("INVENTORY_UPDATE".equals(eventType)) solidityEventType = 2;
+                else if ("DELAY".equals(eventType)) solidityEventType = 3;
+
+                txHash = submitToBlockchain(solidityEventType, orderId != null ? orderId.toString() : "0", "N/A", details);
+                System.out.println("⛓️ [ON-CHAIN SUCCESS] Hash: " + txHash);
             } else {
-                System.out.println("DEBUG: Skipping on-chain (Web3j or TxManager is null)");
                 txHash = "0xSIM_" + java.util.UUID.randomUUID().toString().substring(0, 8);
             }
         } catch (Exception e) {
-            System.err.println("DEBUG: Blockchain Transaction Failed: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("❌ [BLOCKCHAIN ERROR] Transaction Failed: " + e.getMessage());
             txHash = "0xERR_" + System.currentTimeMillis();
         }
 
         try {
             BlockchainEvent event = new BlockchainEvent(txHash, eventType, entityRole, entityId, orderId, details);
             repository.save(event);
-            System.out.println("🔗 [EVENT RECORDED] Type: " + eventType + " | Tx: " + txHash);
         } catch (Exception e) {
             System.err.println("DEBUG: Failed to save event to DB: " + e.getMessage());
         }
     }
 
-    private String submitToBlockchain(String type, String data) throws Exception {
-        // Create a basic transaction to the contract to record activity
+    private String submitToBlockchain(int type, String shipmentId, String sku, String metadata) throws Exception {
+        // Call logSupplyChainEvent(EventType etype, string shipId, string sku, string metadata)
         Function function = new Function(
-                "setActorAuthorization",
-                Arrays.asList(new Address(credentials.getAddress()), new org.web3j.abi.datatypes.Bool(true)),
+                "logSupplyChainEvent",
+                Arrays.asList(
+                    new org.web3j.abi.datatypes.generated.Uint8(type),
+                    new org.web3j.abi.datatypes.Utf8String(shipmentId),
+                    new org.web3j.abi.datatypes.Utf8String(sku),
+                    new org.web3j.abi.datatypes.Utf8String(metadata)
+                ),
                 Collections.emptyList());
 
         String encodedFunction = FunctionEncoder.encode(function);
@@ -89,7 +98,7 @@ public class BlockchainService {
                 BigInteger.ZERO);
 
         if (response.hasError()) {
-            throw new RuntimeException("Blockchain Error: " + response.getError().getMessage());
+            throw new RuntimeException(response.getError().getMessage());
         }
 
         return response.getTransactionHash();
@@ -97,5 +106,9 @@ public class BlockchainService {
 
     public List<BlockchainEvent> getAllEvents() {
         return repository.findAllByOrderByTimestampDesc();
+    }
+
+    public List<BlockchainEvent> getEventsByOrderId(Long orderId) {
+        return repository.findByOrderIdOrderByTimestampAsc(orderId);
     }
 }

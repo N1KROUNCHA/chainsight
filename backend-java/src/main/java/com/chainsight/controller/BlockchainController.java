@@ -20,4 +20,9 @@ public class BlockchainController {
     public List<BlockchainEvent> getEvents() {
         return blockchainService.getAllEvents();
     }
+
+    @GetMapping("/order/{orderId}")
+    public List<BlockchainEvent> getEventsByOrderId(@PathVariable Long orderId) {
+        return blockchainService.getEventsByOrderId(orderId);
+    }
 }

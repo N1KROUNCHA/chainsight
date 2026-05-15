@@ -1,28 +1,36 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import OrderAuditModal from '../../components/OrderAuditModal';
 
 const STATUS_BADGE = {
-  PENDING:   { color: 'warn',    label: '⏳ Pending'   },
-  APPROVED:  { color: 'info',    label: '✅ Approved'  },
-  DISPATCHED:{ color: 'primary', label: '🚛 Dispatched'},
-  IN_TRANSIT:{ color: 'primary', label: '🚚 In Transit'},
+  PENDING: { color: 'warn', label: '⏳ Pending' },
+  APPROVED: { color: 'info', label: '✅ Approved' },
+  DISPATCHED: { color: 'primary', label: '🚛 Dispatched' },
+  IN_TRANSIT: { color: 'primary', label: '🚚 In Transit' },
   DELIVERED: { color: 'success', label: '📦 Delivered' },
-  REJECTED:  { color: 'danger',  label: '❌ Rejected'  },
+  REJECTED: { color: 'danger', label: '❌ Rejected' },
 };
 
 export default function IncomingShipments({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = user.role === 'RETAILER' 
+      const data = user.role === 'RETAILER'
         ? await api.retailerOrders(user.userId)
         : await api.distributorOutboundOrders(user.userId);
-      
+
       // We only care about orders that are at least APPROVED or better
-      const active = (data || []).filter(o => 
+      const active = (data || []).filter(o =>
         ['APPROVED', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED'].includes((o.orderStatus || '').replace(/"/g, ''))
       );
       setOrders(active);
@@ -55,6 +63,12 @@ export default function IncomingShipments({ user }) {
         <div className="page-desc">Track live deliveries, assigned trucks, and estimated arrival times for your orders</div>
       </div>
 
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
+
       <div className="card">
         <div className="card-header">
           <div className="card-title">🚛 Active Deliveries</div>
@@ -63,18 +77,18 @@ export default function IncomingShipments({ user }) {
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
-              <tr><th>Order ID</th><th>Vendor</th><th>Truck #</th><th>Driver</th><th>ETA</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Order ID</th><th>Vendor</th><th>Truck #</th><th>Driver</th><th>ETA</th><th>Status</th><th>Audit</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {orders.map(order => {
                 const status = (order.orderStatus || '').replace(/"/g, '');
                 const badge = STATUS_BADGE[status] || { color: 'info', label: status };
                 const hasTruck = !!order.assignedTruck;
-                
+
                 let eta = '—';
                 if (status === 'DISPATCHED') eta = '2.5 hrs';
                 if (status === 'IN_TRANSIT') eta = '45 mins';
-                if (status === 'DELIVERED')  eta = 'Arrived';
+                if (status === 'DELIVERED') eta = 'Arrived';
                 if (status === 'APPROVED' && !hasTruck) eta = 'Awaiting Pickup';
 
                 return (
@@ -90,9 +104,12 @@ export default function IncomingShipments({ user }) {
                     </td>
                     <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
                     <td>
+                      <button className="btn-icon" onClick={() => openAudit(order.orderId)} title="View Audit">🔍</button>
+                    </td>
+                    <td>
                       {['DISPATCHED', 'IN_TRANSIT'].includes(status) && (
-                        <button 
-                          className="btn btn-primary" 
+                        <button
+                          className="btn btn-primary"
                           style={{ padding: '4px 10px', fontSize: 10 }}
                           onClick={() => handleMarkReceived(order.orderId)}
                         >

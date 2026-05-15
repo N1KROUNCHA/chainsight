@@ -14,8 +14,13 @@ export default function SupplierDashboard({ user }) {
     totalProducts: 0,
     pendingRequests: 0,
     activeShipments: 0,
-    totalVolume: 0
+    totalVolume: 0,
+    trustScore: user.reputation?.score || 10.0,
+    stake: user.reputation?.stakeBalance || 0.0
   });
+
+  const [stakeAmount, setStakeAmount] = useState('');
+  const [staking, setStaking] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -95,6 +100,22 @@ export default function SupplierDashboard({ user }) {
     }
   };
 
+  const handleStake = async (e) => {
+    e.preventDefault();
+    if (!stakeAmount || isNaN(stakeAmount)) return;
+    setStaking(true);
+    try {
+      await api.stake(user.userId, parseFloat(stakeAmount));
+      setStakeAmount('');
+      alert('Stake successful!');
+      window.location.reload();
+    } catch (err) {
+      alert('Staking failed.');
+    } finally {
+      setStaking(false);
+    }
+  };
+
   if (loading) return <div className="loading-ring" />;
 
   return (
@@ -124,6 +145,11 @@ export default function SupplierDashboard({ user }) {
           <div className="kpi-label">Completed Orders</div>
           <div className="kpi-value">{kpis.totalVolume}</div>
           <div className="kpi-icon cyan">📊</div>
+        </div>
+        <div className="kpi-card gold" style={{ background: 'linear-gradient(135deg, #FFD70020, #FFA50020)', border: '1px solid #FFD70040' }}>
+          <div className="kpi-label">Trust Score</div>
+          <div className="kpi-value">{user.reputation?.score?.toFixed(2) || '10.00'}</div>
+          <div className="kpi-icon" style={{ color: '#FFD700' }}>🏆</div>
         </div>
       </div>
 
@@ -178,6 +204,41 @@ export default function SupplierDashboard({ user }) {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div className="card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="card-header" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div className="card-title">🛡️ Supplier Reputation & Trust</div>
+                </div>
+                <div style={{ padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Trust Score</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary)' }}>{user.reputation?.score?.toFixed(2) || '10.00'}</div>
+                      <div style={{ fontSize: 11, marginTop: 4 }}>
+                        <span className="badge success" style={{ fontSize: 9 }}>TOP RATED</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Active Stake</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>${user.reputation?.stakeBalance?.toFixed(2) || '0.00'}</div>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleStake} style={{ display: 'flex', gap: 10 }}>
+                    <input
+                      className="btn btn-ghost"
+                      style={{ flex: 1, textAlign: 'left', cursor: 'text' }}
+                      placeholder="Amount to stake..."
+                      value={stakeAmount}
+                      onChange={e => setStakeAmount(e.target.value)}
+                      type="number"
+                    />
+                    <button type="submit" className="btn btn-primary" disabled={staking}>
+                      {staking ? '...' : 'Stake'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
               <BlockchainLiveFeed />
               <div className="card">
                 <div className="card-header">

@@ -21,6 +21,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
     private final BlockchainService blockchainService;
+    private final ReputationService reputationService;
 
     public OrderService(OrderRepository orderRepository, 
                         RetailerRepository retailerRepository,
@@ -30,7 +31,8 @@ public class OrderService {
                         TruckOwnerRepository truckOwnerRepository,
                         ProductRepository productRepository,
                         InventoryService inventoryService,
-                        BlockchainService blockchainService) {
+                        BlockchainService blockchainService,
+                        ReputationService reputationService) {
         this.orderRepository = orderRepository;
         this.retailerRepository = retailerRepository;
         this.distributorRepository = distributorRepository;
@@ -40,6 +42,7 @@ public class OrderService {
         this.productRepository = productRepository;
         this.inventoryService = inventoryService;
         this.blockchainService = blockchainService;
+        this.reputationService = reputationService;
     }
 
     public Order createOrder(Order order) {
@@ -124,7 +127,9 @@ public class OrderService {
         
         // Logic for inventory movement on status changes
         if ("DELIVERED".equals(cleanStatus) && !"DELIVERED".equals(oldStatus)) {
-            // ... (inventory logic)
+            order.setDeliveredAt(java.time.LocalDateTime.now());
+            
+            // 1. Inventory movement
             Long buyerId = order.getRetailer() != null ? order.getRetailer().getUser().getUserId() : order.getDistributor().getUser().getUserId();
             String buyerType = order.getRetailer() != null ? "RETAILER" : "DISTRIBUTOR";
             
@@ -133,7 +138,70 @@ public class OrderService {
                     inventoryService.adjustStock(buyerType, buyerId, item.getProduct().getProductId(), item.getQuantity());
                 }
             }
-            blockchainService.logEvent("DELIVERED", buyerType, buyerId, order.getOrderId(), "Order #" + order.getOrderId() + " confirmed received.");
+            // 1. Release Truck Capacity
+            if (order.getAssignedTruck() != null) {
+                Truck truck = order.getAssignedTruck();
+                BigDecimal orderWeight = (order.getWeightTons() != null) ? order.getWeightTons() : BigDecimal.ZERO;
+                BigDecimal newAvailable = truck.getAvailableCapacityTons().add(orderWeight);
+                
+                // Cap it at total capacity
+                if (newAvailable.compareTo(truck.getCapacityTons()) > 0) {
+                    newAvailable = truck.getCapacityTons();
+                }
+                
+                truck.setAvailableCapacityTons(newAvailable);
+                truck.setAvailabilityStatus(newAvailable.compareTo(truck.getCapacityTons()) >= 0 ? "AVAILABLE" : "PARTIAL_LOAD");
+                truckRepository.save(truck);
+            }
+
+            // 2. Reputation Growth
+            // 1. Always Reward Transporter (Partner is the Seller)
+            if (order.getAssignedTruck() != null && order.getAssignedTruck().getOwner() != null) {
+                User seller = (order.getDistributor() != null) ? order.getDistributor().getUser() : (order.getSupplier() != null ? order.getSupplier().getUser() : null);
+                reputationService.processSuccessfulDelivery(order.getAssignedTruck().getOwner().getUser(), seller, order);
+            }
+            
+            // 2. Reward the Seller (Partner is the Buyer)
+            User buyer = (order.getRetailer() != null) ? order.getRetailer().getUser() : null;
+            if (order.getDistributor() != null) {
+                reputationService.processSuccessfulDelivery(order.getDistributor().getUser(), buyer, order);
+            } else if (order.getSupplier() != null) {
+                // If it's Supplier -> Middle Man, partner is the Distributor's user
+                User distributorUser = (order.getDistributor() != null) ? order.getDistributor().getUser() : buyer;
+                reputationService.processSuccessfulDelivery(order.getSupplier().getUser(), distributorUser, order);
+            }
+
+            // 3. Update Buyer Inventory
+            String bType = (order.getRetailer() != null) ? "RETAILER" : "DISTRIBUTOR";
+            Long bId = (order.getRetailer() != null) ? order.getRetailer().getUser().getUserId() : 
+                        (order.getDistributor() != null ? order.getDistributor().getUser().getUserId() : null);
+
+            if (bId != null && order.getItems() != null) {
+                for (com.chainsight.model.OrderItem item : order.getItems()) {
+                    inventoryService.adjustStock(bType, bId, item.getProduct().getProductId(), item.getQuantity());
+                    // Also log to blockchain
+                    blockchainService.logEvent("INVENTORY_UPDATE", bType, bId, order.getOrderId(), 
+                        "Stock of " + item.getProduct().getProductName() + " increased by " + item.getQuantity() + " upon delivery.");
+                }
+            }
+
+            blockchainService.logEvent("DELIVERED", buyerType, buyerId, order.getOrderId(), "Order #" + order.getOrderId() + " confirmed received. Reputation scores updated.");
+        }
+
+        if ("DISPUTED".equals(cleanStatus)) {
+            order.setIsDisputed(true);
+            // 1. Always Slash Transporter
+            if (order.getAssignedTruck() != null && order.getAssignedTruck().getOwner() != null) {
+                reputationService.slashReputation(order.getAssignedTruck().getOwner().getUser(), order);
+            }
+            
+            // 2. Slash the Seller (Either Distributor OR Supplier)
+            if (order.getDistributor() != null) {
+                reputationService.slashReputation(order.getDistributor().getUser(), order);
+            } else if (order.getSupplier() != null) {
+                reputationService.slashReputation(order.getSupplier().getUser(), order);
+            }
+            blockchainService.logEvent("DISPUTED", "SYSTEM", 0L, orderId, "Order #" + orderId + " marked as DISPUTED. Transaction parties slashed.");
         }
 
         order.setOrderStatus(cleanStatus);

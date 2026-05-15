@@ -1,35 +1,18 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { QRCodeSVG } from 'qrcode.react';
+import OrderAuditTimeline from '../components/OrderAuditTimeline';
 
 const DEMO_CODES = ['SHP-2241', 'SHP-2235', 'SHP-2225'];
 const STATUS_META = {
   'In Transit': { badge: 'warn', icon: '🚚' },
-  'Delivered':  { badge: 'ok',   icon: '✅' },
-  'Pending':    { badge: 'info', icon: '⏳' },
+  'Delivered': { badge: 'ok', icon: '✅' },
+  'Pending': { badge: 'info', icon: '⏳' },
 };
 
-function QRDisplay({ code }) {
-  const seed = code.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const grid = Array.from({ length: 7 }, (_, r) =>
-    Array.from({ length: 7 }, (_, c) => {
-      if ((r < 2 && c < 2) || (r < 2 && c > 4) || (r > 4 && c < 2)) return true;
-      return ((seed * (r + 1) * (c + 1) * 31337) % 100) < 45;
-    })
-  );
-  return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, padding: 12, background: 'white', borderRadius: 8 }}>
-      {grid.map((row, r) => (
-        <div key={r} style={{ display: 'flex', gap: 2 }}>
-          {row.map((filled, c) => (
-            <div key={c} style={{ width: 9, height: 9, background: filled ? '#080c14' : 'white', borderRadius: 1 }} />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function QRTracking() {
+  const [searchParams] = useSearchParams();
   const [scanCode, setScanCode] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -38,14 +21,34 @@ export default function QRTracking() {
   const [activeDemo, setActiveDemo] = useState(null);
 
   useEffect(() => {
-    api.qr().then(d => setRecentScans(d.recentScans || [])).catch(() => {});
-  }, []);
+    api.qr().then(d => setRecentScans(d.recentScans || [])).catch(() => { });
+
+    // Auto-load if orderId is in URL
+    const orderIdFromUrl = searchParams.get('orderId');
+    if (orderIdFromUrl) {
+      doScan(`ORDER-${orderIdFromUrl}`);
+    }
+  }, [searchParams]);
 
   const doScan = async (code) => {
     const c = (code || scanCode).trim().toUpperCase();
     if (!c) return;
     setLoading(true); setError(''); setResult(null); setActiveDemo(c);
     try {
+      if (c.startsWith('ORDER-')) {
+        const id = c.split('-')[1];
+        // Fetch real order data for the summary
+        const order = await api.getOrder(id);
+        setResult({
+          orderId: id,
+          product: order.items?.map(i => i.product?.productName).join(', ') || 'General Shipment',
+          status: order.orderStatus?.replace(/"/g, '') || 'VERIFIED',
+          recipient: order.retailer?.shopName || order.distributor?.companyName || 'Recipient',
+          weight: order.weightTons ? `${order.weightTons} T` : 'N/A'
+        });
+        return;
+      }
+
       const data = await api.qrCode(c);
       setResult(data);
     } catch {
@@ -105,29 +108,33 @@ export default function QRTracking() {
           {result && (
             <div style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                <QRDisplay code={result.shipmentId} />
+                <QRCodeSVG
+                  value={`📦 CHAINSIGHT PRODUCT PASSPORT\nOrder ID: #${result.orderId}\nProduct: ${result.product}\nStatus: ${result.status}\nRecipient: ${result.recipient}\nVerification: ON-CHAIN VERIFIED`}
+                  size={160}
+                  level="H"
+                  includeMargin={true}
+                />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>{result.shipmentId}</div>
-                <span className={`badge ${statusMeta.badge}`}>{statusMeta.icon} {result.status}</span>
+                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>Order #{result.orderId}</div>
+                <span className={`badge ok`}>✅ VERIFIED</span>
               </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>On-Chain Lifecycle</div>
+                <OrderAuditTimeline orderId={result.orderId} />
+              </div>
+
               {[
-                ['Product',     result.product],
-                ['SKU',         result.sku],
-                ['Origin',      result.origin],
-                ['Destination', result.destination],
-                ['Quantity',    `${result.qty} units`],
-                ['Last Scan',   new Date(result.lastScan).toLocaleString('en-IN')],
+                ['Product', result.product],
+                ['Status', result.status],
+                ['Recipient', result.recipient],
               ].map(([label, value]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{label}</span>
                   <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{value}</span>
                 </div>
               ))}
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>BLOCKCHAIN TX</div>
-                <span className="tx-hash">{result.txHash}</span>
-              </div>
             </div>
           )}
         </div>
@@ -163,10 +170,10 @@ export default function QRTracking() {
               <div className="card-title"><div className="card-icon" style={{ background: 'var(--purple-soft)' }}>⚙️</div>How It Works</div>
             </div>
             {[
-              { icon: '📱', step: '1. Scan',    desc: 'Warehouse staff scan barcode/QR at each checkpoint' },
-              { icon: '🔍', step: '2. Lookup',  desc: 'System fetches real-time shipment data from API' },
-              { icon: '🔗', step: '3. Record',  desc: 'Each scan event is logged to blockchain immutably' },
-              { icon: '📦', step: '4. Sync',    desc: 'Inventory database auto-updated on delivery confirm' },
+              { icon: '📱', step: '1. Scan', desc: 'Warehouse staff scan barcode/QR at each checkpoint' },
+              { icon: '🔍', step: '2. Lookup', desc: 'System fetches real-time shipment data from API' },
+              { icon: '🔗', step: '3. Record', desc: 'Each scan event is logged to blockchain immutably' },
+              { icon: '📦', step: '4. Sync', desc: 'Inventory database auto-updated on delivery confirm' },
             ].map(item => (
               <div key={item.step} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ width: 32, height: 32, background: 'var(--bg-hover)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>{item.icon}</div>

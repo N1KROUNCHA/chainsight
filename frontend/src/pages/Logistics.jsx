@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import OrderAuditModal from '../components/OrderAuditModal';
 
 const STATUS_META = {
-  en_route: { label: 'En Route',  badge: 'ok',   icon: '🟢' },
-  loading:  { label: 'Loading',   badge: 'warn',  icon: '🟡' },
-  delivered:{ label: 'Delivered', badge: 'cyan',  icon: '✅' },
-  delayed:  { label: 'Delayed',   badge: 'crit',  icon: '🔴' },
-  idle:     { label: 'Idle',      badge: 'info',  icon: '⚪' },
+  en_route: { label: 'En Route', badge: 'ok', icon: '🟢' },
+  loading: { label: 'Loading', badge: 'warn', icon: '🟡' },
+  delivered: { label: 'Delivered', badge: 'cyan', icon: '✅' },
+  delayed: { label: 'Delayed', badge: 'crit', icon: '🔴' },
+  idle: { label: 'Idle', badge: 'info', icon: '⚪' },
 };
 
 function TruckCard({ truck }) {
@@ -70,6 +71,13 @@ export default function Logistics({ user }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [assigning, setAssigning] = useState({}); // orderId -> transporterUserId
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -77,16 +85,16 @@ export default function Logistics({ user }) {
       const [logData, transList, allOrders] = await Promise.all([
         api.logistics(),
         api.transporters(),
-        user.role === 'SUPPLIER' 
-          ? api.supplierOrders(user.userId) 
+        user.role === 'SUPPLIER'
+          ? api.supplierOrders(user.userId)
           : api.distributorInboundOrders(user.userId)
       ]);
-      
+
       setData(logData);
       setTransporters(transList);
-      
+
       // We only care about APPROVED orders that don't have a truck OR targetTransporter yet
-      const unassigned = (allOrders || []).filter(o => 
+      const unassigned = (allOrders || []).filter(o =>
         (o.orderStatus || '').replace(/"/g, '') === 'APPROVED' && !o.assignedTruck
       );
       setPendingOrders(unassigned);
@@ -126,8 +134,14 @@ export default function Logistics({ user }) {
         <div className="page-desc">Monitor your fleet and assign approved orders to reliable transporters</div>
       </div>
 
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
+
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, marginBottom: 24 }}>
-        
+
         {/* Fleet KPIs & Monitoring (Existing) */}
         <div>
           <div className="kpi-grid" style={{ marginBottom: 24 }}>
@@ -163,17 +177,20 @@ export default function Logistics({ user }) {
                       <div style={{ fontWeight: 700, fontSize: 13 }}>To: {client}</div>
                       <div style={{ fontSize: 11, color: 'var(--accent)' }}>📦 {order.weightTons} Tons</div>
                     </div>
-                    {order.targetTransporter ? (
-                      <span className="badge info">Assigned to {order.targetTransporter.companyName}</span>
-                    ) : (
-                      <span className="badge warn">Unassigned</span>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      {order.targetTransporter ? (
+                        <span className="badge info">Assigned to {order.targetTransporter.companyName}</span>
+                      ) : (
+                        <span className="badge warn">Unassigned</span>
+                      )}
+                      <button className="btn-sm" onClick={() => openAudit(order.orderId)}>Audit</button>
+                    </div>
                   </div>
-                  
+
                   {!order.targetTransporter && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <select 
-                        className="btn btn-ghost" 
+                      <select
+                        className="btn btn-ghost"
                         style={{ flex: 1, textAlign: 'left', fontSize: 11 }}
                         value={assigning[order.orderId] || ''}
                         onChange={e => setAssigning({ ...assigning, [order.orderId]: e.target.value })}
@@ -185,8 +202,8 @@ export default function Logistics({ user }) {
                           </option>
                         ))}
                       </select>
-                      <button 
-                        className="btn btn-primary" 
+                      <button
+                        className="btn btn-primary"
                         style={{ padding: '4px 12px', fontSize: 11 }}
                         onClick={() => handleAssign(order.orderId)}
                         disabled={!assigning[order.orderId]}

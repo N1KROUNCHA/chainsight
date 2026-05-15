@@ -1,27 +1,34 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import OrderAuditModal from '../../components/OrderAuditModal';
 
 const STATUS_BADGE = {
-  PENDING:   { color: 'warn',    label: '⏳ Pending'   },
-  APPROVED:  { color: 'info',    label: '✅ Approved'  },
-  DISPATCHED:{ color: 'info',    label: '🚛 Dispatched'},
+  PENDING: { color: 'warn', label: '⏳ Pending' },
+  APPROVED: { color: 'info', label: '✅ Approved' },
+  DISPATCHED: { color: 'info', label: '🚛 Dispatched' },
   DELIVERED: { color: 'success', label: '📦 Delivered' },
-  REJECTED:  { color: 'danger',  label: '❌ Rejected'  },
+  REJECTED: { color: 'danger', label: '❌ Rejected' },
 };
 
 export default function SupplierRequestStatus({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch orders PLACED by this user (as buyer)
       const isRetailer = user.role === 'RETAILER';
-      const data = isRetailer 
+      const data = isRetailer
         ? await api.retailerOrders(user.userId).catch(() => [])
         : await api.distributorOutboundOrders(user.userId).catch(() => []);
-      
+
       setOrders(data || []);
     } catch (err) {
       console.error('Failed to load supplier requests:', err);
@@ -38,7 +45,7 @@ export default function SupplierRequestStatus({ user }) {
     const s = (o.orderStatus || '').toUpperCase().replace(/\"/g, '');
     return ['PENDING', 'APPROVED', 'DISPATCHED'].includes(s);
   });
-  
+
   const completedRequests = orders.filter(o => {
     const s = (o.orderStatus || '').toUpperCase().replace(/\"/g, '');
     return ['DELIVERED', 'REJECTED'].includes(s);
@@ -55,23 +62,28 @@ export default function SupplierRequestStatus({ user }) {
         <div className="page-desc">Track status of inventory orders placed to suppliers or distributors</div>
       </div>
 
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        
+
         {/* Active Requests */}
         <div className="card">
           <div className="card-header">
             <div className="card-title">🚛 Active Outbound Requests</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Orders awaiting fulfillment or currently in transit</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Vendor</th><th>Items</th><th>Weight</th><th>Status</th><th>Updated</th></tr>
+                <tr><th>ID</th><th>Vendor</th><th>Items</th><th>Weight</th><th>Status</th><th>Audit</th><th>Updated</th></tr>
               </thead>
               <tbody>
                 {activeRequests.length > 0 ? activeRequests.map(order => {
                   const status = (order.orderStatus || '').replace(/"/g, '');
-                  const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
+                  const badge = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
                   return (
                     <tr key={order.orderId}>
                       <td><span className="tx-hash">#{order.orderId}</span></td>
@@ -79,15 +91,14 @@ export default function SupplierRequestStatus({ user }) {
                       <td>{order.items?.length || 0} item(s)</td>
                       <td>{order.weightTons ? `${order.weightTons} tons` : 'Pending'}</td>
                       <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+                      <td><button className="btn-sm" onClick={() => openAudit(order.orderId)}>Audit</button></td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {new Date(order.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   );
                 }) : (
-                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
-                    No active outbound requests.
-                  </td></tr>
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No requests.</td></tr>
                 )}
               </tbody>
             </table>
@@ -98,32 +109,30 @@ export default function SupplierRequestStatus({ user }) {
         <div className="card">
           <div className="card-header">
             <div className="card-title">📜 Order History</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Previously delivered or rejected orders</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Vendor</th><th>Items</th><th>Status</th><th>Date</th></tr>
+                <tr><th>ID</th><th>Vendor</th><th>Items</th><th>Status</th><th>Audit</th><th>Date</th></tr>
               </thead>
               <tbody>
                 {completedRequests.length > 0 ? completedRequests.map(order => {
                   const status = (order.orderStatus || '').replace(/"/g, '');
-                  const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
+                  const badge = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
                   return (
                     <tr key={order.orderId} style={{ opacity: 0.8 }}>
                       <td><span className="tx-hash">#{order.orderId}</span></td>
                       <td className="primary">{getVendorName(order)}</td>
                       <td>{order.items?.length || 0} item(s)</td>
                       <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+                      <td><button className="btn-sm" onClick={() => openAudit(order.orderId)}>Audit</button></td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {new Date(order.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   );
                 }) : (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
-                    No historical orders.
-                  </td></tr>
+                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No history.</td></tr>
                 )}
               </tbody>
             </table>

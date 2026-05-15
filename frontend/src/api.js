@@ -22,6 +22,7 @@ export const api = {
   addProduct: (data) => post('/products', data),
   suppliers:  () => get('/users/suppliers'),
   distributors: () => get('/users/distributors'),
+  me: (id) => get(`/users/${id}`),
   
   createOrder: (data) => post('/orders', data),
   retailerOrders: (id) => get(`/orders/retailer/${id}`),
@@ -36,6 +37,7 @@ export const api = {
   bottleneck: () => get('/bottleneck'),
   logistics:  () => get('/logistics'),
   blockchain: () => get('/blockchain/events'),
+  getBlockchainByOrder: (orderId) => get(`/blockchain/order/${orderId}`),
   alerts:     () => get('/alerts'),
   qr:         () => get('/qr'),
   qrCode:   (code) => get(`/qr/${code}`),
@@ -51,6 +53,7 @@ export const api = {
   },
   activeJobs: (ownerId) => get(`/orders/truck-owner/${ownerId}/active-jobs`),
   assignTruck: (orderId, truckId) => patch(`/orders/${orderId}/assign-truck/${truckId}`, {}),
+  stake: (userId, amount) => post(`/users/${userId}/stake`, { amount }),
 };
 
 async function post(path, body) {

@@ -12,6 +12,7 @@ const navItems = [
   { to: '/forecast',     icon: '📈', label: 'Demand Forecasting', section: 'ANALYTICS', roles: ['ADMIN', 'DISTRIBUTOR'] },
   { to: '/inventory',    icon: '📦', label: 'Inventory',          section: 'ANALYTICS', roles: ['ADMIN', 'SUPPLIER', 'DISTRIBUTOR', 'RETAILER'] },
   { to: '/bottleneck',   icon: '⚠️', label: 'Bottleneck Detection',section: 'ANALYTICS', roles: ['ADMIN', 'DISTRIBUTOR'] },
+  { to: '/intelligence',  icon: '🧠', label: 'AI Intelligence',   section: 'ANALYTICS', roles: ['ADMIN', 'DISTRIBUTOR', 'SUPPLIER'] },
   { to: '/logistics',    icon: '🚚', label: 'Logistics & Trucks', section: 'OPERATIONS', roles: ['ADMIN', 'TRUCK_OWNER', 'DISTRIBUTOR', 'SUPPLIER'] },
   { to: '/blockchain',   icon: '🔗', label: 'Blockchain Audit',   section: 'OPERATIONS', roles: ['ADMIN'] },
   { to: '/notifications',icon: '🔔', label: 'Notifications',      section: 'OPERATIONS', roles: ['ADMIN', 'SUPPLIER', 'DISTRIBUTOR', 'RETAILER', 'TRUCK_OWNER'], badgeKey: 'alerts' },

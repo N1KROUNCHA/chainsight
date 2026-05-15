@@ -12,17 +12,21 @@ public class AnalyticsController {
 
     private final OrderRepository orderRepository;
     private final com.chainsight.service.BlockchainService blockchainService;
+    private final com.chainsight.service.AnalyticsService analyticsService;
 
-    public AnalyticsController(OrderRepository orderRepository, com.chainsight.service.BlockchainService blockchainService) {
+    public AnalyticsController(OrderRepository orderRepository, 
+                               com.chainsight.service.BlockchainService blockchainService,
+                               com.chainsight.service.AnalyticsService analyticsService) {
         this.orderRepository = orderRepository;
         this.blockchainService = blockchainService;
+        this.analyticsService = analyticsService;
     }
 
     @GetMapping("/blockchain")
     public Map<String, Object> getBlockchainData() {
         List<com.chainsight.model.BlockchainEvent> events = blockchainService.getAllEvents();
         return Map.of(
-            "contractAddress", "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "contractAddress", "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
             "chainId", 1337,
             "totalEvents", events.size(),
             "events", events
@@ -31,27 +35,7 @@ public class AnalyticsController {
 
     @GetMapping("/bottleneck")
     public Map<String, Object> getBottleneckAnalysis() {
-        List<Order> allOrders = orderRepository.findAll();
-        int total = allOrders.size();
-        int pending = (int) allOrders.stream().filter(o -> "PENDING".equals(o.getOrderStatus())).count();
-        int approved = (int) allOrders.stream().filter(o -> "APPROVED".equals(o.getOrderStatus())).count();
-        int dispatched = (int) allOrders.stream().filter(o -> "DISPATCHED".equals(o.getOrderStatus())).count();
-        int delivered = (int) allOrders.stream().filter(o -> "DELIVERED".equals(o.getOrderStatus())).count();
-
-        // Simulate stage analysis based on real order distribution
-        List<Map<String, Object>> stages = new ArrayList<>();
-        stages.add(createStage("1", "Order Verification", 1.2, (double)pending/total, 95, pending > 5 ? "WARNING" : "OK"));
-        stages.add(createStage("2", "Warehouse Picking", 4.5, (double)approved/total, 88, approved > 5 ? "CRITICAL" : "OK"));
-        stages.add(createStage("3", "Carrier Dispatch", 2.1, (double)dispatched/total, 92, dispatched > 3 ? "WARNING" : "OK"));
-        stages.add(createStage("4", "Last Mile Delivery", 12.4, 0.05, 84, "OK"));
-
-        Map<String, Object> res = new HashMap<>();
-        res.put("stages", stages);
-        res.put("recentDelays", List.of(
-            Map.of("shipmentId", "ORD-992", "stage", "Warehouse Picking", "delayHrs", 5, "ts", System.currentTimeMillis() - 3600000),
-            Map.of("shipmentId", "ORD-881", "stage", "Carrier Dispatch", "delayHrs", 2, "ts", System.currentTimeMillis() - 7200000)
-        ));
-        return res;
+        return analyticsService.calculateBottlenecks();
     }
 
     @GetMapping("/forecast")

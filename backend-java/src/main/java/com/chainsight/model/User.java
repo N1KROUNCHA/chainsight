@@ -3,6 +3,8 @@ package com.chainsight.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -27,6 +29,9 @@ public class User {
     @Column(length = 20)
     private String phone;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private UserReputation reputation;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -46,4 +51,7 @@ public class User {
     public void setPhone(String phone) { this.phone = phone; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public UserReputation getReputation() { return reputation; }
+    public void setReputation(UserReputation reputation) { this.reputation = reputation; }
 }

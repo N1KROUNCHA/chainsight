@@ -1,20 +1,28 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import BlockchainLiveFeed from '../../components/BlockchainLiveFeed';
+import OrderAuditModal from '../../components/OrderAuditModal';
 
 const STATUS_BADGE = {
-  PENDING:   { color: 'warn',    label: '⏳ Pending'   },
-  APPROVED:  { color: 'info',    label: '✅ Approved'  },
-  DISPATCHED:{ color: 'info',    label: '🚛 Dispatched'},
+  PENDING: { color: 'warn', label: '⏳ Pending' },
+  APPROVED: { color: 'info', label: '✅ Approved' },
+  DISPATCHED: { color: 'info', label: '🚛 Dispatched' },
   DELIVERED: { color: 'success', label: '📦 Delivered' },
-  REJECTED:  { color: 'danger',  label: '❌ Rejected'  },
+  REJECTED: { color: 'danger', label: '❌ Rejected' },
 };
 
 export default function RetailerDashboard({ user }) {
-  const [loading, setLoading]   = useState(true);
-  const [orders, setOrders]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [kpis, setKpis]         = useState({ currentStock: 0, lowStockAlerts: 0, pendingOrders: 0, incomingDeliveries: 0 });
+  const [kpis, setKpis] = useState({ currentStock: 0, lowStockAlerts: 0, pendingOrders: 0, incomingDeliveries: 0 });
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -25,14 +33,14 @@ export default function RetailerDashboard({ user }) {
       ]);
 
       const oList = orderData || [];
-      const iList = invData  || [];
+      const iList = invData || [];
       setOrders(oList);
       setInventory(iList);
 
       const currentStock = iList.reduce((sum, item) => sum + item.quantity, 0);
-      const lowStock     = iList.filter(item => item.quantity <= item.reorderPoint).length;
-      const pending      = oList.filter(o => ['PENDING', 'APPROVED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
-      const incoming     = oList.filter(o => ['DISPATCHED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
+      const lowStock = iList.filter(item => item.quantity <= item.reorderPoint).length;
+      const pending = oList.filter(o => ['PENDING', 'APPROVED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
+      const incoming = oList.filter(o => ['DISPATCHED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
 
       setKpis({ currentStock, lowStockAlerts: lowStock, pendingOrders: pending, incomingDeliveries: incoming });
     } catch (err) {
@@ -46,21 +54,51 @@ export default function RetailerDashboard({ user }) {
 
   if (loading) return <div className="loading-ring" />;
 
-  const requestOrders  = orders.filter(o => ['PENDING', 'REJECTED'].includes((o.orderStatus || '').replace(/"/g, '')));
+  const requestOrders = orders.filter(o => ['PENDING', 'REJECTED'].includes((o.orderStatus || '').replace(/"/g, '')));
   const activeShipments = orders.filter(o => ['APPROVED', 'DISPATCHED', 'DELIVERED'].includes((o.orderStatus || '').replace(/"/g, '')));
 
   const OrderRow = ({ o }) => {
     const status = (o.orderStatus || '').replace(/"/g, '');
-    const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
+    const badge = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
     const source = o.supplier?.companyName || o.distributor?.companyName || 'Unknown';
+    const supplierScore = o.supplier?.user?.reputation?.score || 10.0;
+    const transporterScore = o.assignedTruck?.owner?.user?.reputation?.score || 0;
+
     return (
       <tr>
         <td><span className="tx-hash">#{o.orderId}</span></td>
-        <td className="primary">{source}</td>
-        <td>{o.items?.length || 0} item(s)</td>
+        <td className="primary">
+          <div style={{ fontWeight: 600 }}>{source}</div>
+          <div style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 700 }}>🏆 Trust: {supplierScore.toFixed(1)}</div>
+        </td>
+        <td>
+          <div>{o.items?.length || 0} item(s)</div>
+          {o.assignedTruck && (
+            <div style={{ fontSize: 9, color: 'var(--cyan)' }}>🚛 Transporter Trust: {transporterScore.toFixed(1)}</div>
+          )}
+        </td>
         <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+        <td>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-icon" onClick={() => openAudit(o.orderId)} title="View On-Chain Audit">🔍</button>
+            {status !== 'DISPUTED' && status !== 'PENDING' && (
+              <button className="btn-icon" style={{ color: 'var(--red)' }} onClick={() => handleDispute(o.orderId)} title="Raise Dispute (Slash Reputation)">⚠️</button>
+            )}
+          </div>
+        </td>
       </tr>
     );
+  };
+
+  const handleDispute = async (orderId) => {
+    if (window.confirm("Are you sure you want to raise a dispute? This will slash the reputation of both the supplier and transporter.")) {
+      try {
+        await api.updateOrderStatus(orderId, 'DISPUTED');
+        window.location.reload();
+      } catch (err) {
+        alert('Failed to raise dispute.');
+      }
+    }
   };
 
   return (
@@ -69,6 +107,12 @@ export default function RetailerDashboard({ user }) {
         <div className="page-title">🏪 Retailer Command Center</div>
         <div className="page-desc">Manage your shop inventory and orders for {user.fullName}</div>
       </div>
+
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
 
       <div className="kpi-grid">
         <div className="kpi-card blue">
@@ -103,11 +147,11 @@ export default function RetailerDashboard({ user }) {
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead>
-                  <tr><th>ID</th><th>Sent To</th><th>Items</th><th>Status</th></tr>
+                  <tr><th>ID</th><th>Sent To</th><th>Items</th><th>Status</th><th>Audit</th></tr>
                 </thead>
                 <tbody>
                   {requestOrders.length > 0 ? requestOrders.map(o => <OrderRow key={o.orderId} o={o} />) : (
-                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No pending or rejected requests.</td></tr>
+                    <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No pending or rejected requests.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -122,11 +166,11 @@ export default function RetailerDashboard({ user }) {
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead>
-                  <tr><th>ID</th><th>From</th><th>Items</th><th>Status</th></tr>
+                  <tr><th>ID</th><th>From</th><th>Items</th><th>Status</th><th>Audit</th></tr>
                 </thead>
                 <tbody>
                   {activeShipments.length > 0 ? activeShipments.map(o => <OrderRow key={o.orderId} o={o} />) : (
-                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No active shipments yet.</td></tr>
+                    <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No active shipments yet.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -171,3 +215,4 @@ export default function RetailerDashboard({ user }) {
     </div>
   );
 }
+

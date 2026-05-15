@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface BlockchainEventRepository extends JpaRepository<BlockchainEvent, Long> {
     List<BlockchainEvent> findAllByOrderByTimestampDesc();
+    List<BlockchainEvent> findByOrderIdOrderByTimestampAsc(Long orderId);
 }

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import OrderAuditModal from '../../components/OrderAuditModal';
 
 const STATUS_BADGE = {
-  PENDING:   { color: 'warn',    label: '⏳ Pending'   },
-  APPROVED:  { color: 'info',    label: '✅ Approved'  },
-  DISPATCHED:{ color: 'info',    label: '🚛 Dispatched'},
+  PENDING: { color: 'warn', label: '⏳ Pending' },
+  APPROVED: { color: 'info', label: '✅ Approved' },
+  DISPATCHED: { color: 'info', label: '🚛 Dispatched' },
   DELIVERED: { color: 'success', label: '📦 Delivered' },
-  REJECTED:  { color: 'danger',  label: '❌ Rejected'  },
+  REJECTED: { color: 'danger', label: '❌ Rejected' },
 };
 
 export default function DistributorRetailerRequests({ user }) {
@@ -16,6 +17,13 @@ export default function DistributorRetailerRequests({ user }) {
   const [selectedWeight, setSelectedWeight] = useState({});
   const [selectedTransporter, setSelectedTransporter] = useState({});
   const [transporters, setTransporters] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -55,7 +63,7 @@ export default function DistributorRetailerRequests({ user }) {
       if (newStatus === 'APPROVED' && transporterId) {
         await api.assignTransporter(orderId, transporterId);
       }
-      
+
       loadData();
     } catch (err) {
       alert('Failed to update order status');
@@ -64,8 +72,8 @@ export default function DistributorRetailerRequests({ user }) {
 
   if (loading) return <div className="loading-ring" />;
 
-  const pendingRequests  = orders.filter(o => ['PENDING', 'REJECTED'].includes((o.orderStatus || '').replace(/"/g, '')));
-  const activeShipments  = orders.filter(o => ['APPROVED', 'DISPATCHED', 'DELIVERED'].includes((o.orderStatus || '').replace(/"/g, '')));
+  const pendingRequests = orders.filter(o => ['PENDING', 'REJECTED'].includes((o.orderStatus || '').replace(/"/g, '')));
+  const activeShipments = orders.filter(o => ['APPROVED', 'DISPATCHED', 'DELIVERED'].includes((o.orderStatus || '').replace(/"/g, '')));
 
   return (
     <div>
@@ -74,24 +82,30 @@ export default function DistributorRetailerRequests({ user }) {
         <div className="page-desc">Approve or reject incoming order requests from retailers in your region</div>
       </div>
 
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {/* ── Pending Requests (need Approve / Reject) ── */}
+        {/* ── Pending Requests ── */}
         <div className="card">
           <div className="card-header">
             <div className="card-title">📬 Pending Retailer Requests</div>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {pendingRequests.filter(o => (o.orderStatus || '').replace(/"/g, '') === 'PENDING').length} awaiting your decision
+              {pendingRequests.filter(o => (o.orderStatus || '').replace(/"/g, '') === 'PENDING').length} awaiting decision
             </span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Retailer</th><th>Items</th><th>Weight (T)</th><th>Status</th><th>Action</th></tr>
+                <tr><th>ID</th><th>Retailer</th><th>Items</th><th>Weight & Transporter</th><th>Status</th><th>Audit</th><th>Action</th></tr>
               </thead>
               <tbody>
                 {pendingRequests.length > 0 ? pendingRequests.map(order => {
                   const status = (order.orderStatus || '').replace(/"/g, '');
-                  const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
+                  const badge = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
                   return (
                     <tr key={order.orderId}>
                       <td><span className="tx-hash">#{order.orderId}</span></td>
@@ -99,58 +113,50 @@ export default function DistributorRetailerRequests({ user }) {
                       <td>{order.items?.length || 0} item(s)</td>
                       <td>
                         {status === 'PENDING' ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <input 
-                                type="number" 
-                                step="0.01" 
-                                placeholder="Weight (Tons)" 
-                                className="btn btn-ghost" 
-                                style={{ width: 120, fontSize: 11, textAlign: 'left' }}
-                                value={selectedWeight[order.orderId] || ''}
-                                onChange={(e) => setSelectedWeight({...selectedWeight, [order.orderId]: e.target.value})}
-                              />
-                              <select 
-                                className="btn btn-ghost" 
-                                style={{ flex: 1, fontSize: 11, textAlign: 'left' }}
-                                value={selectedTransporter[order.orderId] || ''}
-                                onChange={(e) => setSelectedTransporter({...selectedTransporter, [order.orderId]: e.target.value})}
-                              >
-                                <option value="">-- Choose Transporter --</option>
-                                {transporters.map(t => (
-                                  <option key={t.user.userId} value={t.user.userId}>
-                                    {t.companyName} ({t.city})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <button
-                                className="btn btn-primary"
-                                style={{ padding: '6px 16px', fontSize: 11 }}
-                                onClick={() => handleStatusChange(order.orderId, 'APPROVED')}
-                              >
-                                Approve & Dispatch
-                              </button>
-                              <button
-                                className="btn btn-ghost"
-                                style={{ padding: '6px 16px', fontSize: 11, color: 'var(--red)' }}
-                                onClick={() => handleStatusChange(order.orderId, 'REJECTED')}
-                              >
-                                Reject
-                              </button>
-                            </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Weight (T)"
+                              className="btn btn-ghost"
+                              style={{ width: 90, fontSize: 11, textAlign: 'left' }}
+                              value={selectedWeight[order.orderId] || ''}
+                              onChange={(e) => setSelectedWeight({ ...selectedWeight, [order.orderId]: e.target.value })}
+                            />
+                            <select
+                              className="btn btn-ghost"
+                              style={{ flex: 1, fontSize: 11, textAlign: 'left' }}
+                              value={selectedTransporter[order.orderId] || ''}
+                              onChange={(e) => setSelectedTransporter({ ...selectedTransporter, [order.orderId]: e.target.value })}
+                            >
+                              <option value="">-- Transporter --</option>
+                              {transporters.map(t => (
+                                <option key={t.user.userId} value={t.user.userId}>
+                                  {t.companyName}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         ) : (
                           <span className={`badge ${badge.color}`}>{badge.label}</span>
                         )}
                       </td>
+                      <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+                      <td>
+                        <button className="btn-icon" onClick={() => openAudit(order.orderId)} title="View Audit">🔍</button>
+                      </td>
+                      <td>
+                        {status === 'PENDING' && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 11 }} onClick={() => handleStatusChange(order.orderId, 'APPROVED')}>Approve</button>
+                            <button className="btn btn-ghost" style={{ padding: '6px 12px', fontSize: 11, color: 'var(--red)' }} onClick={() => handleStatusChange(order.orderId, 'REJECTED')}>Reject</button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   );
                 }) : (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
-                    No pending requests at this time.
-                  </td></tr>
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No requests.</td></tr>
                 )}
               </tbody>
             </table>
@@ -160,31 +166,31 @@ export default function DistributorRetailerRequests({ user }) {
         {/* ── Active Shipments ── */}
         <div className="card">
           <div className="card-header">
-            <div className="card-title">🚛 Active Shipments to Retailers</div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Approved orders and ongoing deliveries</span>
+            <div className="card-title">🚛 Active Shipments</div>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Retailer</th><th>Items</th><th>Truck</th><th>Status</th></tr>
+                <tr><th>ID</th><th>Retailer</th><th>Items</th><th>Truck</th><th>Status</th><th>Audit</th></tr>
               </thead>
               <tbody>
                 {activeShipments.length > 0 ? activeShipments.map(order => {
                   const status = (order.orderStatus || '').replace(/"/g, '');
-                  const badge  = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
+                  const badge = STATUS_BADGE[status] || { color: status.toLowerCase(), label: status };
                   return (
                     <tr key={order.orderId}>
                       <td><span className="tx-hash">#{order.orderId}</span></td>
                       <td className="primary">{order.retailer?.shopName || 'Retailer'}</td>
                       <td>{order.items?.length || 0} item(s)</td>
-                      <td style={{ fontSize: 12 }}>{order.assignedTruck?.truckNumber || <span style={{ color: 'var(--text-muted)' }}>Awaiting truck</span>}</td>
+                      <td style={{ fontSize: 12 }}>{order.assignedTruck?.truckNumber || 'Awaiting'}</td>
                       <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+                      <td>
+                        <button className="btn-icon" onClick={() => openAudit(order.orderId)} title="View Audit">🔍</button>
+                      </td>
                     </tr>
                   );
                 }) : (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
-                    No active shipments yet.
-                  </td></tr>
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>No shipments.</td></tr>
                 )}
               </tbody>
             </table>

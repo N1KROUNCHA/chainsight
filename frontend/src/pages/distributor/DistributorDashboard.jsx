@@ -15,6 +15,8 @@ export default function DistributorDashboard({ user }) {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [kpis, setKpis]           = useState({ totalVolume: 0, pendingOrders: 0, lowStockItems: 0, activeShipments: 0 });
+  const [stakeAmount, setStakeAmount] = useState('');
+  const [staking, setStaking] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -29,12 +31,12 @@ export default function DistributorDashboard({ user }) {
       setOrders(oList);
       setInventory(iList);
 
-      const pending    = oList.filter(o => (o.orderStatus || '').replace(/"/g, '') === 'PENDING').length;
-      const activeShip = oList.filter(o => ['APPROVED', 'DISPATCHED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
-      const totalVol   = iList.reduce((sum, item) => sum + item.quantity, 0);
-      const lowStock   = iList.filter(item => item.quantity <= item.reorderPoint).length;
+      const totalVolume = iList.reduce((sum, item) => sum + item.quantity, 0);
+      const lowStockItems = iList.filter(item => item.quantity <= item.reorderPoint).length;
+      const pendingOrders = oList.filter(o => ['PENDING', 'APPROVED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
+      const activeShipments = oList.filter(o => ['DISPATCHED'].includes((o.orderStatus || '').replace(/"/g, ''))).length;
 
-      setKpis({ totalVolume: totalVol, pendingOrders: pending, lowStockItems: lowStock, activeShipments: activeShip });
+      setKpis({ totalVolume, pendingOrders, lowStockItems, activeShipments });
     } catch (err) {
       console.error('Failed to load distributor data:', err);
     } finally {
@@ -44,12 +46,19 @@ export default function DistributorDashboard({ user }) {
 
   useEffect(() => { loadData(); }, [user]);
 
-  const handleStatusChange = async (orderId, newStatus) => {
+  const handleStake = async (e) => {
+    e.preventDefault();
+    if (!stakeAmount || isNaN(stakeAmount)) return;
+    setStaking(true);
     try {
-      await api.updateOrderStatus(orderId, newStatus);
-      loadData();
+      await api.stake(user.userId, parseFloat(stakeAmount));
+      setStakeAmount('');
+      alert('Stake successful! Your trust score is now backed by collateral.');
+      window.location.reload();
     } catch (err) {
-      alert('Failed to update order');
+      alert('Staking failed.');
+    } finally {
+      setStaking(false);
     }
   };
 
@@ -82,6 +91,11 @@ export default function DistributorDashboard({ user }) {
           <div className="kpi-label">Low Stock Alerts</div>
           <div className="kpi-value">{kpis.lowStockItems}</div>
           <div className="kpi-icon red">🚨</div>
+        </div>
+        <div className="kpi-card gold">
+          <div className="kpi-label">Trust Score</div>
+          <div className="kpi-value">{user.reputation?.score?.toFixed(2) || '10.00'}</div>
+          <div className="kpi-icon gold">🏆</div>
         </div>
         <div className="kpi-card green">
           <div className="kpi-label">Active Shipments</div>
@@ -126,6 +140,25 @@ export default function DistributorDashboard({ user }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div className="card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div className="card-header"><div className="card-title">🛡️ Distributor Trust & Collateral</div></div>
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Trust Score</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--gold)' }}>{user.reputation?.score?.toFixed(2) || '10.00'}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Inventory Stake</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>${user.reputation?.stakeBalance?.toFixed(2) || '0.00'}</div>
+                </div>
+              </div>
+              <form onSubmit={handleStake} style={{ display: 'flex', gap: 10 }}>
+                <input className="btn btn-ghost" style={{ flex: 1 }} placeholder="Deposit Stake" value={stakeAmount} onChange={e => setStakeAmount(e.target.value)} type="number" />
+                <button type="submit" className="btn btn-primary" disabled={staking}>{staking ? '...' : 'Stake'}</button>
+              </form>
+            </div>
+          </div>
           <BlockchainLiveFeed />
         </div>
       </div>

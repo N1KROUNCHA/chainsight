@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
+import OrderAuditModal from '../../components/OrderAuditModal';
 
 const STATUS_BADGE = {
-  PENDING:   { color: 'warn',    label: '⏳ Pending'   },
-  APPROVED:  { color: 'info',    label: '✅ Approved'  },
-  DISPATCHED:{ color: 'info',    label: '🚛 Dispatched'},
+  PENDING: { color: 'warn', label: '⏳ Pending' },
+  APPROVED: { color: 'info', label: '✅ Approved' },
+  DISPATCHED: { color: 'info', label: '🚛 Dispatched' },
   DELIVERED: { color: 'success', label: '📦 Delivered' },
-  REJECTED:  { color: 'danger',  label: '❌ Rejected'  },
+  REJECTED: { color: 'danger', label: '❌ Rejected' },
 };
 
 export default function SupplierIncomingOrders({ user }) {
@@ -16,6 +17,13 @@ export default function SupplierIncomingOrders({ user }) {
   const [selectedWeight, setSelectedWeight] = useState({});
   const [selectedTransporter, setSelectedTransporter] = useState({});
   const [transporters, setTransporters] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -55,7 +63,7 @@ export default function SupplierIncomingOrders({ user }) {
       if (newStatus === 'APPROVED' && transporterId) {
         await api.assignTransporter(orderId, transporterId);
       }
-      
+
       loadData();
     } catch (err) {
       alert('Failed to update order status');
@@ -86,8 +94,14 @@ export default function SupplierIncomingOrders({ user }) {
         <div className="page-desc">Approve or reject incoming requests from distributors and retailers</div>
       </div>
 
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        
+
         {/* Pending Requests */}
         <div className="card">
           <div className="card-header">
@@ -97,7 +111,7 @@ export default function SupplierIncomingOrders({ user }) {
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Client</th><th>Items</th><th>Weight (T)</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>ID</th><th>Client</th><th>Items</th><th>Weight (T)</th><th>Status</th><th>Audit</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {pendingOrders.length > 0 ? pendingOrders.map(order => {
@@ -110,20 +124,20 @@ export default function SupplierIncomingOrders({ user }) {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="Weight (Tons)" 
-                              className="btn btn-ghost" 
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Weight (Tons)"
+                              className="btn btn-ghost"
                               style={{ width: 120, fontSize: 11, textAlign: 'left' }}
                               value={selectedWeight[order.orderId] || ''}
-                              onChange={(e) => setSelectedWeight({...selectedWeight, [order.orderId]: e.target.value})}
+                              onChange={(e) => setSelectedWeight({ ...selectedWeight, [order.orderId]: e.target.value })}
                             />
-                            <select 
-                              className="btn btn-ghost" 
+                            <select
+                              className="btn btn-ghost"
                               style={{ flex: 1, fontSize: 11, textAlign: 'left' }}
                               value={selectedTransporter[order.orderId] || ''}
-                              onChange={(e) => setSelectedTransporter({...selectedTransporter, [order.orderId]: e.target.value})}
+                              onChange={(e) => setSelectedTransporter({ ...selectedTransporter, [order.orderId]: e.target.value })}
                             >
                               <option value="">-- Choose Transporter --</option>
                               {transporters.map(t => (
@@ -138,6 +152,9 @@ export default function SupplierIncomingOrders({ user }) {
                             <button className="btn btn-ghost" style={{ padding: '6px 16px', fontSize: 11, color: 'var(--red)' }} onClick={() => handleStatusChange(order.orderId, 'REJECTED')}>Reject</button>
                           </div>
                         </div>
+                      </td>
+                      <td>
+                        <button className="btn-icon" onClick={() => openAudit(order.orderId)} title="View Audit">🔍</button>
                       </td>
                     </tr>
                   );
@@ -158,7 +175,7 @@ export default function SupplierIncomingOrders({ user }) {
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Client</th><th>Items</th><th>Status</th><th>Updated</th></tr>
+                <tr><th>ID</th><th>Client</th><th>Items</th><th>Status</th><th>Audit</th><th>Updated</th></tr>
               </thead>
               <tbody>
                 {activeOrders.length > 0 ? activeOrders.map(order => {
@@ -171,6 +188,9 @@ export default function SupplierIncomingOrders({ user }) {
                       <td className="primary">{client}</td>
                       <td>{order.items?.length || 0} Products</td>
                       <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+                      <td>
+                        <button className="btn-icon" onClick={() => openAudit(order.orderId)} title="View Audit">🔍</button>
+                      </td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(order.createdAt).toLocaleDateString()}</td>
                     </tr>
                   );
@@ -191,7 +211,7 @@ export default function SupplierIncomingOrders({ user }) {
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>ID</th><th>Client</th><th>Items</th><th>Status</th><th>Date</th></tr>
+                <tr><th>ID</th><th>Client</th><th>Items</th><th>Status</th><th>Audit</th><th>Date</th></tr>
               </thead>
               <tbody>
                 {completedOrders.length > 0 ? completedOrders.map(order => {
@@ -204,6 +224,9 @@ export default function SupplierIncomingOrders({ user }) {
                       <td className="primary">{client}</td>
                       <td>{order.items?.length || 0} Products</td>
                       <td><span className={`badge ${badge.color}`}>{badge.label}</span></td>
+                      <td>
+                        <button className="btn-icon" onClick={() => openAudit(order.orderId)} title="View Audit">🔍</button>
+                      </td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(order.createdAt).toLocaleDateString()}</td>
                     </tr>
                   );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api';
+import OrderAuditModal from '../../components/OrderAuditModal';
 
 const TRUCK_SIZES = [
   { label: 'Small — 5 Ton', capacity: '5.00', icon: '🚐', color: 'cyan' },
@@ -24,6 +25,17 @@ export default function TruckOwnerDashboard({ user }) {
   // Accept Load state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedTruck, setSelectedTruck] = useState('');
+
+  // Reputation & Audit state
+  const [stakeAmount, setStakeAmount] = useState('');
+  const [staking, setStaking] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openAudit = (id) => {
+    setSelectedOrderId(id);
+    setIsModalOpen(true);
+  };
 
   // Add Truck form state
   const [showAddTruck, setShowAddTruck] = useState(false);
@@ -76,9 +88,29 @@ export default function TruckOwnerDashboard({ user }) {
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
       await api.updateOrderStatus(orderId, newStatus);
-      loadData();
+      if (newStatus === 'DELIVERED') {
+        window.location.reload();
+      } else {
+        loadData();
+      }
     } catch (err) {
       alert('Failed to update order status.');
+    }
+  };
+
+  const handleStake = async (e) => {
+    e.preventDefault();
+    if (!stakeAmount || isNaN(stakeAmount)) return;
+    setStaking(true);
+    try {
+      await api.stake(user.userId, parseFloat(stakeAmount));
+      setStakeAmount('');
+      alert('Stake successful! Your trust score is now backed by collateral.');
+      window.location.reload();
+    } catch (err) {
+      alert('Staking failed.');
+    } finally {
+      setStaking(false);
     }
   };
 
@@ -122,7 +154,13 @@ export default function TruckOwnerDashboard({ user }) {
         <button className="btn btn-primary" onClick={() => setShowAddTruck(!showAddTruck)}>
           {showAddTruck ? '✕ Cancel' : '+ Add Truck'}
         </button>
-      </div>
+    </div>
+
+      <OrderAuditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        orderId={selectedOrderId}
+      />
 
       {/* ── Add Truck Form ── */}
       {showAddTruck && (
@@ -235,10 +273,10 @@ export default function TruckOwnerDashboard({ user }) {
           <div className="kpi-value">{activeJobs.length}</div>
           <div className="kpi-icon purple">📍</div>
         </div>
-        <div className="kpi-card cyan">
-          <div className="kpi-label">Fleet Capacity Used</div>
-          <div className="kpi-value">{usedCapacity.toFixed(1)} / {totalCapacity.toFixed(1)} T</div>
-          <div className="kpi-icon cyan">📦</div>
+        <div className="kpi-card gold">
+          <div className="kpi-label">Trust Score</div>
+          <div className="kpi-value">{user.reputation?.score?.toFixed(2) || '10.00'}</div>
+          <div className="kpi-icon gold">🏆</div>
         </div>
       </div>
 
@@ -339,6 +377,7 @@ export default function TruckOwnerDashboard({ user }) {
                                 ✅ Delivered
                               </button>
                             )}
+                            <button className="btn-icon" style={{ marginLeft: 8 }} onClick={() => openAudit(job.orderId)}>🔍</button>
                           </div>
                         </td>
                       </tr>
@@ -380,8 +419,30 @@ export default function TruckOwnerDashboard({ user }) {
           </div>
         </div>
 
-        {/* ── Open Shipment Requests ── */}
-        <div className="card">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Reputation & Staking Card */}
+          <div className="card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div className="card-header"><div className="card-title">🛡️ Reputation & Trust Layer</div></div>
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Trust Score</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--gold)' }}>{user.reputation?.score?.toFixed(2) || '10.00'}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Stake Balance</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>${user.reputation?.stakeBalance?.toFixed(2) || '0.00'}</div>
+                </div>
+              </div>
+              <form onSubmit={handleStake} style={{ display: 'flex', gap: 10 }}>
+                <input className="btn btn-ghost" style={{ flex: 1 }} placeholder="Amount to Stake" value={stakeAmount} onChange={e => setStakeAmount(e.target.value)} type="number" />
+                <button type="submit" className="btn btn-primary" disabled={staking}>{staking ? '...' : 'Stake'}</button>
+              </form>
+            </div>
+          </div>
+
+          {/* ── Open Shipment Requests ── */}
+          <div className="card">
           <div className="card-header">
             <div className="card-title">Open Shipment Requests</div>
             <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{openRequests.length} available</span>
@@ -455,6 +516,7 @@ export default function TruckOwnerDashboard({ user }) {
           </div>
         </div>
 
+        </div>
       </div>
     </div>
   );

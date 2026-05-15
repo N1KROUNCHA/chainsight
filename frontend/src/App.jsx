@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar.jsx';
 import TopBar from './components/TopBar.jsx';
 import Login from './pages/Login.jsx';
+import { api } from './api';
 
 // Existing Pages (Refactor to generic/admin for now)
 import RetailerDashboard from './pages/retailer/RetailerDashboard.jsx';
@@ -23,15 +24,31 @@ import Logistics from './pages/Logistics.jsx';
 import BlockchainAudit from './pages/BlockchainAudit.jsx';
 import Notifications from './pages/Notifications.jsx';
 import QRTracking from './pages/QRTracking.jsx';
+import Intelligence from './pages/Intelligence.jsx';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
-    setLoading(false);
+    const syncUser = async () => {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        try {
+          console.log('🔄 Syncing user data from server for ID:', parsed.userId);
+          const fresh = await api.me(parsed.userId);
+          console.log('✅ Fresh data received:', fresh);
+          setUser(fresh);
+          localStorage.setItem('user', JSON.stringify(fresh));
+        } catch (e) {
+          console.error('❌ Sync failed:', e);
+          setUser(parsed); // Fallback to local if server is down
+        }
+      }
+      setLoading(false);
+    };
+    syncUser();
   }, []);
 
   const handleLogin = (u) => {
@@ -85,6 +102,7 @@ export default function App() {
               <Route path="/logistics" element={<Logistics />} />
               <Route path="/blockchain" element={<BlockchainAudit />} />
               <Route path="/qr" element={<QRTracking />} />
+              <Route path="/intelligence" element={<Intelligence />} />
               
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

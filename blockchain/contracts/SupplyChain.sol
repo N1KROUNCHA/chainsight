@@ -126,6 +126,15 @@ contract SupplyChain {
         return id;
     }
 
+    function logSupplyChainEvent(
+        EventType  etype,
+        string memory shipId,
+        string memory sku,
+        string memory metadata
+    ) external onlyAuthorized returns (uint256) {
+        return _logEvent(etype, shipId, sku, metadata);
+    }
+
     // ── Shipment lifecycle ───────────────────────────────────────────────────
     function createShipment(
         string calldata shipmentId,
